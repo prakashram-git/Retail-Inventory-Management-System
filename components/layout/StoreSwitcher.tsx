@@ -44,7 +44,7 @@ export function StoreSwitcher() {
           <DropdownMenuItem
             key={store.id}
             className="touch-target"
-            onSelect={() => switchStore(store.id)}
+            onClick={() => switchStore(store.id)}
           >
             {store.name}
             {store.id === storeId && <Check className="ml-auto h-4 w-4" />}

@@ -81,11 +81,11 @@ export function CategoryCard({
             }
           />
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onEdit}>
+            <DropdownMenuItem onClick={onEdit}>
               <Pencil />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
               <Trash2 />
               Delete
             </DropdownMenuItem>

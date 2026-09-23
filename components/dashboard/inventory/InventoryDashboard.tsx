@@ -61,6 +61,7 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
   const [sheetState, setSheetState] = useState<{ open: boolean; product: ProductWithCategory | null }>(
     { open: false, product: null }
   );
@@ -91,6 +92,8 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
   const filteredProducts = useMemo(() => {
     const query = search.trim().toLowerCase();
     return products.filter((product) => {
+      if (!showInactive && !product.is_active) return false;
+
       if (query) {
         const haystack = `${product.sku} ${product.name} ${product.barcode ?? ""}`.toLowerCase();
         if (!haystack.includes(query)) return false;
@@ -113,7 +116,7 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
 
       return true;
     });
-  }, [products, search, categoryFilter, lowStockOnly, categoryById]);
+  }, [products, search, categoryFilter, lowStockOnly, showInactive, categoryById]);
 
   function openCreate() {
     setSheetState({ open: true, product: null });
@@ -166,6 +169,13 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                 Low stock only
               </Label>
             </div>
+
+            <div className="flex items-center gap-2">
+              <Switch id="show-inactive" checked={showInactive} onCheckedChange={setShowInactive} />
+              <Label htmlFor="show-inactive" className="whitespace-nowrap">
+                Show deleted
+              </Label>
+            </div>
           </div>
 
           <Button onClick={openCreate} className="shrink-0">
@@ -194,7 +204,7 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                   <TableHead className="text-right">Retail</TableHead>
                   <TableHead className="text-right">Margin</TableHead>
                   <TableHead>Stock</TableHead>
-                  <TableHead />
+                  <TableHead className="sticky right-0 z-10 border-l bg-background" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -237,7 +247,7 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                       <TableCell>
                         <StockBar currentStock={product.current_stock} threshold={threshold} />
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="sticky right-0 z-10 border-l bg-background">
                         <DropdownMenu>
                           <DropdownMenuTrigger
                             render={
@@ -248,17 +258,17 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                             }
                           />
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => openEdit(product)}>
+                            <DropdownMenuItem onClick={() => openEdit(product)}>
                               <Pencil />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setAdjustTarget(product)}>
+                            <DropdownMenuItem onClick={() => setAdjustTarget(product)}>
                               <PackagePlus />
                               Adjust stock
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               variant="destructive"
-                              onSelect={() => setDeleteTarget(product)}
+                              onClick={() => setDeleteTarget(product)}
                             >
                               <Trash2 />
                               Delete
@@ -308,17 +318,17 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                             }
                           />
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onSelect={() => openEdit(product)}>
+                            <DropdownMenuItem onClick={() => openEdit(product)}>
                               <Pencil />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setAdjustTarget(product)}>
+                            <DropdownMenuItem onClick={() => setAdjustTarget(product)}>
                               <PackagePlus />
                               Adjust stock
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               variant="destructive"
-                              onSelect={() => setDeleteTarget(product)}
+                              onClick={() => setDeleteTarget(product)}
                             >
                               <Trash2 />
                               Delete
