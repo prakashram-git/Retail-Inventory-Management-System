@@ -4,15 +4,20 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStoreContext } from "./shared";
 
+// `damage` has no distinct Postgres enum value on inventory_logs.change_type
+// (sale | restock | adjustment | return | shrinkage | offline_variance), so
+// it's recorded as `shrinkage` like theft — the audit notes carry the
+// specific cause, which is what the ledger actually needs to be reviewable.
 const REASON_TO_CHANGE_TYPE = {
   restock: "restock",
+  damage: "shrinkage",
   shrinkage: "shrinkage",
   adjustment: "adjustment",
 } as const;
 
 const adjustmentInputSchema = z.object({
   product_id: z.string().uuid(),
-  reason: z.enum(["restock", "shrinkage", "adjustment"]),
+  reason: z.enum(["restock", "damage", "shrinkage", "adjustment"]),
   direction: z.enum(["increase", "decrease"]),
   quantity: z.coerce.number().int().positive("Quantity must be greater than 0"),
   notes: z.string().trim().min(1, "Audit notes are required").max(500),

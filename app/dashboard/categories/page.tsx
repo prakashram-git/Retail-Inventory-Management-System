@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
+import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
 import { CategoryManager } from "@/components/dashboard/categories/CategoryManager";
 import type { CategoryWithCount } from "@/lib/types/domain";
 
@@ -17,10 +19,12 @@ export default async function CategoriesPage() {
     .eq("id", userResult.user!.id)
     .single();
 
-  const storeId =
-    profile?.role === "super_admin"
-      ? cookieStore.get(ACTIVE_STORE_COOKIE)?.value ?? profile.store_id
-      : profile?.store_id;
+  const storeId = profile
+    ? await resolveActiveStoreId(supabase, cookieStore.get(ACTIVE_STORE_COOKIE)?.value, profile)
+    : null;
+  if (!storeId) {
+    redirect("/dashboard");
+  }
 
   const [{ data: categories }, { data: productRows }] = await Promise.all([
     supabase
@@ -28,10 +32,10 @@ export default async function CategoriesPage() {
       .select(
         "id, store_id, parent_id, name, slug, icon, sort_order, default_min_threshold, is_tax_exempt, created_at"
       )
-      .eq("store_id", storeId!)
+      .eq("store_id", storeId)
       .order("sort_order")
       .order("name"),
-    supabase.from("products").select("category_id").eq("store_id", storeId!),
+    supabase.from("products").select("category_id").eq("store_id", storeId),
   ]);
 
   const counts = new Map<string, number>();

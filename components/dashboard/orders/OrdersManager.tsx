@@ -27,7 +27,13 @@ import { ORDERS_RANGE_PRESETS, type OrdersRangePreset } from "@/lib/orders/range
 import { OrderDetailSheet } from "./OrderDetailSheet";
 import type { OrderRow, OrderStatus } from "@/lib/orders/types";
 
-type StatusFilter = "all" | "completed" | "offline_synced" | "stock_variance" | "refunded";
+type StatusFilter =
+  | "all"
+  | "completed"
+  | "offline_synced"
+  | "stock_variance"
+  | "refunded"
+  | "partially_refunded";
 
 const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
   all: "All statuses",
@@ -35,6 +41,7 @@ const STATUS_FILTER_LABEL: Record<StatusFilter, string> = {
   offline_synced: "Offline synced",
   stock_variance: "Stock variance",
   refunded: "Refunded",
+  partially_refunded: "Partially refunded",
 };
 
 function matchesStatusFilter(order: OrderRow, filter: StatusFilter): boolean {
@@ -48,7 +55,9 @@ function matchesStatusFilter(order: OrderRow, filter: StatusFilter): boolean {
     case "stock_variance":
       return order.status === "completed_with_stock_variance";
     case "refunded":
-      return order.status === "refunded" || order.status === "partially_refunded";
+      return order.status === "refunded";
+    case "partially_refunded":
+      return order.status === "partially_refunded";
   }
 }
 

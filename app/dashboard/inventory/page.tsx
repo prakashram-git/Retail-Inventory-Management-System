@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
+import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
 import { InventoryDashboard } from "@/components/dashboard/inventory/InventoryDashboard";
 import type { Category, ProductWithCategory } from "@/lib/types/domain";
 
@@ -17,10 +19,12 @@ export default async function InventoryPage() {
     .eq("id", userResult.user!.id)
     .single();
 
-  const storeId =
-    profile?.role === "super_admin"
-      ? cookieStore.get(ACTIVE_STORE_COOKIE)?.value ?? profile.store_id
-      : profile?.store_id;
+  const storeId = profile
+    ? await resolveActiveStoreId(supabase, cookieStore.get(ACTIVE_STORE_COOKIE)?.value, profile)
+    : null;
+  if (!storeId) {
+    redirect("/dashboard");
+  }
 
   const [{ data: categories }, { data: products }, { data: varianceOrders }] = await Promise.all([
     supabase
@@ -28,20 +32,20 @@ export default async function InventoryPage() {
       .select(
         "id, store_id, parent_id, name, slug, icon, sort_order, default_min_threshold, is_tax_exempt, created_at"
       )
-      .eq("store_id", storeId!)
+      .eq("store_id", storeId)
       .order("sort_order")
       .order("name"),
     supabase
       .from("products")
       .select(
-        "*, category:categories(id, name, slug, parent_id)"
+        "*, category:categories(id, name, slug, parent_id, is_tax_exempt)"
       )
-      .eq("store_id", storeId!)
+      .eq("store_id", storeId)
       .order("updated_at", { ascending: false }),
     supabase
       .from("orders")
       .select("id, invoice_number")
-      .eq("store_id", storeId!)
+      .eq("store_id", storeId)
       .eq("status", "completed_with_stock_variance")
       .order("created_at", { ascending: false })
       .limit(20),

@@ -165,7 +165,6 @@ export function PosTerminal({
 
   async function handleSignOut() {
     await logout();
-    router.push("/login");
   }
 
   const totals = calculateCartTotals(cart, taxRatePercent, taxModel, 0);

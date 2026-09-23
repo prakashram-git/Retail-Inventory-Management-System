@@ -83,5 +83,5 @@ export interface Product {
 }
 
 export interface ProductWithCategory extends Product {
-  category: Pick<Category, "id" | "name" | "slug" | "parent_id"> | null;
+  category: Pick<Category, "id" | "name" | "slug" | "parent_id" | "is_tax_exempt"> | null;
 }

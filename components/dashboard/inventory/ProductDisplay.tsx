@@ -1,6 +1,6 @@
 "use client";
 
-import { Package } from "lucide-react";
+import { Package, Percent } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,17 @@ export function CategoryBadge({ category }: { category: ProductWithCategory["cat
   if (!category) {
     return <Badge variant="outline">Uncategorized</Badge>;
   }
-  return <Badge variant="secondary">{category.name}</Badge>;
+  return (
+    <div className="flex items-center gap-1.5">
+      <Badge variant="secondary">{category.name}</Badge>
+      {category.is_tax_exempt && (
+        <Badge variant="outline" className="gap-1 text-xs" title="Tax exempt">
+          <Percent className="size-3" />
+          <span className="sr-only">Tax exempt</span>
+        </Badge>
+      )}
+    </div>
+  );
 }
 
 export function MarginBadge({ costPrice, retailPrice }: { costPrice: number; retailPrice: number }) {

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { logout } from "@/lib/actions/auth";
 import { NAV_ITEMS, matchActiveHref } from "./nav-items";
 import type { UserRole } from "@/lib/types/domain";
 
@@ -29,6 +31,15 @@ export function MobileBottomNav({ role }: { role: UserRole }) {
           </Link>
         );
       })}
+      <form action={logout} className="flex flex-1">
+        <button
+          type="submit"
+          className="touch-target flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-xs font-medium text-muted-foreground"
+        >
+          <LogOut className="h-5 w-5" />
+          Log out
+        </button>
+      </form>
     </nav>
   );
 }

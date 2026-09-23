@@ -1,3 +1,5 @@
+import { LogOut } from "lucide-react";
+import { logout } from "@/lib/actions/auth";
 import { StoreSwitcher } from "./StoreSwitcher";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ThemeToggle } from "./ThemeToggle";
@@ -9,6 +11,15 @@ export function Header() {
       <div className="flex items-center gap-2">
         <ConnectionBadge />
         <ThemeToggle />
+        <form action={logout} className="md:hidden">
+          <button
+            type="submit"
+            aria-label="Log out"
+            className="touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <LogOut className="h-5 w-5" />
+          </button>
+        </form>
       </div>
     </header>
   );

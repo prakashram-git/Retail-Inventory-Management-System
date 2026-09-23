@@ -1,4 +1,10 @@
 import { z } from "zod";
+import { validateGS1Barcode } from "@/lib/utils/barcode";
+
+// Only 8/12/13-digit scans carry a GS1 check digit; a plain alphanumeric SKU
+// entered as a "barcode" never does, so it skips this check — same shape
+// test the POS scanner uses in components/pos/PosTerminal.tsx.
+const isGS1Shaped = (value: string) => /^\d{8}$|^\d{12}$|^\d{13}$/.test(value);
 
 /**
  * Shared between the server action (lib/actions/products.ts) and the
@@ -15,7 +21,10 @@ export const productFormSchema = z.object({
     .max(64)
     .optional()
     .nullable()
-    .transform((value) => (value ? value : null)),
+    .transform((value) => (value ? value : null))
+    .refine((value) => !value || !isGS1Shaped(value) || validateGS1Barcode(value), {
+      message: "Invalid barcode: check digit mismatch",
+    }),
   category_id: z.string().uuid().nullable(),
   tags: z.array(z.string().trim().min(1).max(40)).max(20).default([]),
   description: z

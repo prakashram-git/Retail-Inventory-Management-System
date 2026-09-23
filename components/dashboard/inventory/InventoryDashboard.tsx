@@ -17,6 +17,7 @@ import { useStore } from "@/components/providers/StoreProvider";
 import { getEffectiveThreshold, getStockStatus } from "@/lib/utils/inventory";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
@@ -203,7 +204,7 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                     product.category && categoryById.get(product.category.id)
                   );
                   return (
-                    <TableRow key={product.id}>
+                    <TableRow key={product.id} className={!product.is_active ? "opacity-60" : undefined}>
                       <TableCell>
                         <ProductThumbnail product={product} />
                       </TableCell>
@@ -211,7 +212,16 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                       <TableCell className="font-mono text-sm text-muted-foreground">
                         {product.barcode || "—"}
                       </TableCell>
-                      <TableCell className="max-w-48 truncate">{product.name}</TableCell>
+                      <TableCell className="max-w-48">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate">{product.name}</span>
+                          {!product.is_active && (
+                            <Badge variant="outline" className="shrink-0 text-xs">
+                              Inactive
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <CategoryBadge category={product.category} />
                       </TableCell>
@@ -270,13 +280,20 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                 product.category && categoryById.get(product.category.id)
               );
               return (
-                <Card key={product.id} size="sm">
+                <Card key={product.id} size="sm" className={!product.is_active ? "opacity-60" : undefined}>
                   <CardContent className="flex gap-3">
                     <ProductThumbnail product={product} />
                     <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex min-w-0 flex-col">
-                          <span className="truncate text-sm font-medium">{product.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-sm font-medium">{product.name}</span>
+                            {!product.is_active && (
+                              <Badge variant="outline" className="shrink-0 text-xs">
+                                Inactive
+                              </Badge>
+                            )}
+                          </div>
                           <span className="font-mono text-xs text-muted-foreground">
                             {product.sku}
                           </span>

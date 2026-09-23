@@ -25,18 +25,20 @@ import {
 } from "@/components/ui/select";
 import type { ProductWithCategory } from "@/lib/types/domain";
 
-type Reason = "restock" | "shrinkage" | "adjustment";
+type Reason = "restock" | "damage" | "shrinkage" | "adjustment";
 type Direction = "increase" | "decrease";
 
 const REASON_LABEL: Record<Reason, string> = {
   restock: "Restock (shipment received)",
-  shrinkage: "Shrinkage (theft / damage)",
+  damage: "Damage",
+  shrinkage: "Shrinkage (theft)",
   adjustment: "Manual correction",
 };
 
-/** Restock and shrinkage always move stock one direction; only a manual correction lets the manager pick. */
+/** Restock always increases; damage/shrinkage always decrease. Only a manual correction lets the manager pick. */
 const FIXED_DIRECTION: Partial<Record<Reason, Direction>> = {
   restock: "increase",
+  damage: "decrease",
   shrinkage: "decrease",
 };
 
@@ -108,6 +110,7 @@ export function StockAdjustmentModal({ open, onOpenChange, product }: StockAdjus
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="restock">{REASON_LABEL.restock}</SelectItem>
+                <SelectItem value="damage">{REASON_LABEL.damage}</SelectItem>
                 <SelectItem value="shrinkage">{REASON_LABEL.shrinkage}</SelectItem>
                 <SelectItem value="adjustment">{REASON_LABEL.adjustment}</SelectItem>
               </SelectContent>

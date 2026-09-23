@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
+import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
 import { getRangeBounds, type ReportRangePreset } from "@/lib/reports/timezone";
 import { ReportsDashboard } from "@/components/dashboard/reports/ReportsDashboard";
 import type {
@@ -73,15 +75,17 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     .eq("id", userResult.user!.id)
     .single();
 
-  const storeId =
-    profile?.role === "super_admin"
-      ? cookieStore.get(ACTIVE_STORE_COOKIE)?.value ?? profile.store_id
-      : profile?.store_id;
+  const storeId = profile
+    ? await resolveActiveStoreId(supabase, cookieStore.get(ACTIVE_STORE_COOKIE)?.value, profile)
+    : null;
+  if (!storeId) {
+    redirect("/dashboard");
+  }
 
   const { data: store } = await supabase
     .from("stores")
     .select("timezone")
-    .eq("id", storeId!)
+    .eq("id", storeId)
     .single();
   const timezone = store?.timezone ?? "UTC";
 
@@ -95,32 +99,32 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     { data: stockMovementRows },
     { data: tillSessionRows },
   ] = await Promise.all([
-    supabase.from("categories").select("id, name, parent_id").eq("store_id", storeId!),
+    supabase.from("categories").select("id, name, parent_id").eq("store_id", storeId),
     supabase
       .from("order_items")
       .select(
         "order_id, quantity, refunded_quantity, unit_price, product:products(id, name, sku, category_id, cost_price), order:orders!inner(created_at, invoice_number, status, store_id)"
       )
-      .eq("order.store_id", storeId!)
+      .eq("order.store_id", storeId)
       .neq("order.status", "voided")
       .gte("order.created_at", from.toISOString())
       .lte("order.created_at", to.toISOString()),
     supabase
       .from("products")
       .select("id, name, sku, category_id, current_stock, cost_price")
-      .eq("store_id", storeId!)
+      .eq("store_id", storeId)
       .eq("is_active", true),
     supabase
       .from("order_items")
       .select("product_id, quantity, refunded_quantity, order:orders!inner(created_at, status, store_id)")
-      .eq("order.store_id", storeId!)
+      .eq("order.store_id", storeId)
       .neq("order.status", "voided"),
     supabase
       .from("inventory_logs")
       .select(
         "id, created_at, change_type, quantity, previous_stock, new_stock, notes, product:products(name, sku, cost_price)"
       )
-      .eq("store_id", storeId!)
+      .eq("store_id", storeId)
       .gte("created_at", from.toISOString())
       .lte("created_at", to.toISOString())
       .order("created_at", { ascending: false })
@@ -130,7 +134,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       .select(
         "id, opened_at, closed_at, opening_float, closing_counted_cash, expected_cash, discrepancy, status, cashier:profiles(full_name, email)"
       )
-      .eq("store_id", storeId!)
+      .eq("store_id", storeId)
       .gte("opened_at", from.toISOString())
       .lte("opened_at", to.toISOString())
       .order("opened_at", { ascending: false })

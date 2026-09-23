@@ -29,7 +29,7 @@ export function DeleteProductDialog({ open, onOpenChange, product }: DeleteProdu
     startTransition(async () => {
       try {
         await deleteProduct(product!.id);
-        toast.success(`"${product!.name}" deleted`);
+        toast.success(`"${product!.name}" deactivated`);
         onOpenChange(false);
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Something went wrong");
@@ -43,8 +43,9 @@ export function DeleteProductDialog({ open, onOpenChange, product }: DeleteProdu
         <DialogHeader>
           <DialogTitle>Delete &quot;{product.name}&quot;?</DialogTitle>
           <DialogDescription>
-            This permanently removes the SKU {product.sku} from this store&apos;s catalog. This
-            action cannot be undone.
+            This removes SKU {product.sku} from the POS catalog and hides it from new sales. Its
+            order and stock history are kept, so it stays visible here (marked Inactive) and can
+            be reactivated later from the product sheet.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

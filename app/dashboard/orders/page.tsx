@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
+import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
 import { getOrdersRangeBounds, type OrdersRangePreset } from "@/lib/orders/range";
 import { OrdersManager } from "@/components/dashboard/orders/OrdersManager";
 import type { OrderRow } from "@/lib/orders/types";
@@ -29,15 +31,17 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
     .eq("id", userResult.user!.id)
     .single();
 
-  const storeId =
-    profile?.role === "super_admin"
-      ? cookieStore.get(ACTIVE_STORE_COOKIE)?.value ?? profile.store_id
-      : profile?.store_id;
+  const storeId = profile
+    ? await resolveActiveStoreId(supabase, cookieStore.get(ACTIVE_STORE_COOKIE)?.value, profile)
+    : null;
+  if (!storeId) {
+    redirect("/dashboard");
+  }
 
   const { data: store } = await supabase
     .from("stores")
     .select("timezone")
-    .eq("id", storeId!)
+    .eq("id", storeId)
     .single();
 
   const { from, to } = getOrdersRangeBounds(range, store?.timezone ?? "UTC");
@@ -45,7 +49,7 @@ export default async function OrdersPage({ searchParams }: OrdersPageProps) {
   let query = supabase
     .from("orders")
     .select(ORDER_COLUMNS)
-    .eq("store_id", storeId!)
+    .eq("store_id", storeId)
     .lte("created_at", to.toISOString())
     .order("created_at", { ascending: false })
     .limit(500);
