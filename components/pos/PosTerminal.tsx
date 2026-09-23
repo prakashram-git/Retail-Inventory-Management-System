@@ -4,12 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LayoutDashboard, LogOut, Receipt } from "lucide-react";
+import { LayoutDashboard, LogOut, Receipt, KeyRound } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
 import { useSync } from "@/components/providers/SyncProvider";
 import { ConnectionBadge } from "@/components/layout/ConnectionBadge";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import { AccountDialog } from "@/components/account/AccountDialog";
 import { logout } from "@/lib/actions/auth";
 import { useBarcodeScanner } from "@/lib/pos/use-barcode-scanner";
 import { validateGS1Barcode } from "@/lib/utils/barcode";
@@ -33,6 +34,7 @@ interface PosTerminalProps {
   role: UserRole;
   cashierId: string;
   cashierName: string;
+  cashierPhone: string | null;
   storeName: string;
   unitNumber: string | null;
   floorNumber: string | null;
@@ -46,6 +48,7 @@ export function PosTerminal({
   role,
   cashierId,
   cashierName,
+  cashierPhone,
   storeName,
   unitNumber,
   floorNumber,
@@ -69,6 +72,7 @@ export function PosTerminal({
   const [sisterStoreProduct, setSisterStoreProduct] = useState<PosProduct | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [closeShiftOpen, setCloseShiftOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [session, setSession] = useState<CashDrawerSession | null | "loading">("loading");
   const [justClosedShift, setJustClosedShift] = useState(false);
 
@@ -216,12 +220,23 @@ export function PosTerminal({
           )}
           <ConnectionBadge />
           <ThemeToggle />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="touch-target"
+            onClick={() => setAccountOpen(true)}
+          >
+            <KeyRound className="h-5 w-5" />
+            <span className="sr-only">Account</span>
+          </Button>
           <Button variant="ghost" size="icon" className="touch-target" onClick={handleSignOut}>
             <LogOut className="h-5 w-5" />
             <span className="sr-only">Sign out</span>
           </Button>
         </div>
       </header>
+
+      <AccountDialog open={accountOpen} onOpenChange={setAccountOpen} initialPhone={cashierPhone} />
 
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-y-auto p-3 pb-24 lg:w-[65%] lg:flex-none lg:pb-3">

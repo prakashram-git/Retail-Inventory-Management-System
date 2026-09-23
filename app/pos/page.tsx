@@ -18,7 +18,7 @@ export default async function PosPage() {
   const { data: userResult } = await supabase.auth.getUser();
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, role, store_id, full_name, email")
+    .select("id, role, store_id, full_name, email, phone")
     .eq("id", userResult.user!.id)
     .single();
 
@@ -66,6 +66,7 @@ export default async function PosPage() {
       role={profile!.role as UserRole}
       cashierId={profile!.id}
       cashierName={profile?.full_name || profile?.email || "Cashier"}
+      cashierPhone={profile?.phone ?? null}
       storeName={store?.name ?? "Store"}
       unitNumber={store?.unit_number ?? null}
       floorNumber={store?.floor_number ?? null}

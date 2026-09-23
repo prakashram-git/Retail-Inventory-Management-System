@@ -21,7 +21,7 @@ export default async function UsersSettingsPage() {
   const [{ data: staff }, { data: stores }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, email, role, store_id, is_active, created_at")
+      .select("id, full_name, email, phone, role, store_id, is_active, created_at")
       .order("created_at", { ascending: false }),
     supabase.from("stores").select("id, name").order("name"),
   ]);

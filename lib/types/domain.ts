@@ -5,6 +5,7 @@ export interface Profile {
   role: UserRole;
   store_id: string | null;
   full_name: string | null;
+  phone: string | null;
 }
 
 export interface Store {
@@ -40,6 +41,7 @@ export interface StaffMember {
   id: string;
   full_name: string | null;
   email: string;
+  phone: string | null;
   role: UserRole;
   store_id: string | null;
   is_active: boolean;

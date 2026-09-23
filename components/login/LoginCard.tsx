@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { ForgotPasswordDialog } from "./ForgotPasswordDialog";
 
 // Supabase's signup validator rejects non-standard TLDs (e.g. ".mall"), so
 // these use ".com"-shaped addresses even though the accounts are demo-only.
@@ -22,6 +23,7 @@ export function LoginCard() {
   const [isPending, startTransition] = useTransition();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [forgotOpen, setForgotOpen] = useState(false);
 
   function submit(formData: FormData) {
     startTransition(async () => {
@@ -85,9 +87,18 @@ export function LoginCard() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="password" className="text-white/90">
-            Password
-          </Label>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password" className="text-white/90">
+              Password
+            </Label>
+            <button
+              type="button"
+              onClick={() => setForgotOpen(true)}
+              className="text-xs text-white/70 underline-offset-2 hover:text-white hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
           <Input
             id="password"
             name="password"
@@ -106,6 +117,8 @@ export function LoginCard() {
           {isPending ? "Signing in..." : "Sign in"}
         </Button>
       </form>
+
+      <ForgotPasswordDialog open={forgotOpen} onOpenChange={setForgotOpen} />
 
       <div className="mt-6 border-t border-white/15 pt-4">
         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-white/60">

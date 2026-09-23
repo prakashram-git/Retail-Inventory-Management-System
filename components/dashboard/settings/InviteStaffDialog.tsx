@@ -33,23 +33,31 @@ interface InviteStaffDialogProps {
 export function InviteStaffDialog({ open, onOpenChange, stores }: InviteStaffDialogProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [role, setRole] = useState<UserRole>("cashier");
   const [storeId, setStoreId] = useState<string>(stores[0]?.id ?? "");
   const [posPin, setPosPin] = useState("");
   const [isPending, startTransition] = useTransition();
   const [created, setCreated] = useState<{ email: string; tempPassword: string } | null>(null);
 
+  // Deliberately depends on `open` alone, not `stores`: inviteStaff's
+  // revalidatePath() refetches `stores` as a new array reference while this
+  // dialog is still open showing the just-created credentials, and a
+  // `stores`-dependent effect would re-fire and wipe that result out from
+  // under the admin before they can copy it.
   useEffect(() => {
     if (!open) return;
     // Resets the form each time the modal opens for a fresh invite.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFullName("");
     setEmail("");
+    setPhone("");
     setRole("cashier");
     setStoreId(stores[0]?.id ?? "");
     setPosPin("");
     setCreated(null);
-  }, [open, stores]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const posPinValid = /^\d{4,6}$/.test(posPin);
 
@@ -59,6 +67,7 @@ export function InviteStaffDialog({ open, onOpenChange, stores }: InviteStaffDia
         const result = await inviteStaff({
           full_name: fullName,
           email,
+          phone: phone.trim() || undefined,
           role,
           store_id: role === "super_admin" ? null : storeId || null,
           pos_pin: posPin,
@@ -113,6 +122,21 @@ export function InviteStaffDialog({ open, onOpenChange, stores }: InviteStaffDia
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={isPending}
                 />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="staff-phone">Phone (optional)</Label>
+                <Input
+                  id="staff-phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  disabled={isPending}
+                  placeholder="+14155551234"
+                />
+                <p className="text-xs text-muted-foreground">
+                  International format. Used for password-reset codes once SMS is enabled.
+                </p>
               </div>
 
               <div className="flex flex-col gap-1.5">

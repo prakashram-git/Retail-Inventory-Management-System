@@ -52,6 +52,7 @@ export function StaffManager({ staff, stores }: StaffManagerProps) {
                 <TableRow>
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
                   <TableHead>Store</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
@@ -66,6 +67,9 @@ export function StaffManager({ staff, stores }: StaffManagerProps) {
                   >
                     <TableCell className="font-medium">{member.full_name ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{member.email}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {member.phone ?? "—"}
+                    </TableCell>
                     <TableCell>
                       {member.store_id ? (
                         <Badge variant="outline">
