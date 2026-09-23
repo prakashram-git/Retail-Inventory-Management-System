@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+    ],
+  },
+  experimental: {
+    optimizePackageImports: ["lucide-react", "recharts", "dexie"],
+  },
 };
 
 export default nextConfig;
