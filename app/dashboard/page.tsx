@@ -1,42 +1,109 @@
-import Link from "next/link";
-import { FolderTree, Boxes } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
+import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
+import { getRangeBounds } from "@/lib/reports/timezone";
+import { mapSaleLineRows, type SaleLineJoinRow } from "@/lib/reports/shape";
+import { HomeDashboard } from "@/components/dashboard/home/HomeDashboard";
+import type { OrderRow } from "@/lib/orders/types";
+import type { Category, Product } from "@/lib/types/domain";
 
-export default function DashboardPage() {
+export const dynamic = "force-dynamic";
+
+const RECENT_ORDER_COLUMNS =
+  "id, invoice_number, total, status, payment_method, is_offline_sync, created_at, cashier:profiles(full_name, email)";
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const cookieStore = await cookies();
+
+  const { data: userResult } = await supabase.auth.getUser();
+  if (!userResult.user) redirect("/login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, role, store_id, full_name")
+    .eq("id", userResult.user.id)
+    .single();
+
+  const storeId = profile
+    ? await resolveActiveStoreId(supabase, cookieStore.get(ACTIVE_STORE_COOKIE)?.value, profile)
+    : null;
+  if (!storeId) {
+    redirect("/login");
+  }
+
+  const { data: store } = await supabase
+    .from("stores")
+    .select("name, timezone")
+    .eq("id", storeId)
+    .single();
+  const timezone = store?.timezone ?? "UTC";
+
+  const { from: todayFrom } = getRangeBounds("today", timezone);
+  const { from: weekFrom, to: weekTo } = getRangeBounds("7d", timezone);
+
+  const [
+    { data: categoryRows },
+    { data: productRows },
+    { data: weekSaleLineRows },
+    { data: recentOrderRows },
+  ] = await Promise.all([
+    supabase
+      .from("categories")
+      .select("id, store_id, parent_id, name, slug, icon, sort_order, default_min_threshold, is_tax_exempt, created_at")
+      .eq("store_id", storeId),
+    supabase
+      .from("products")
+      .select("id, store_id, category_id, sku, barcode, name, description, tags, cost_price, retail_price, current_stock, min_threshold, image_url, is_active, updated_at")
+      .eq("store_id", storeId),
+    supabase
+      .from("order_items")
+      .select(
+        "order_id, quantity, refunded_quantity, unit_price, product:products(id, name, sku, category_id, cost_price), order:orders!inner(created_at, invoice_number, status, store_id, payment_method, cashier:profiles(full_name, email))"
+      )
+      .eq("order.store_id", storeId)
+      .neq("order.status", "voided")
+      .gte("order.created_at", weekFrom.toISOString())
+      .lte("order.created_at", weekTo.toISOString()),
+    supabase
+      .from("orders")
+      .select(RECENT_ORDER_COLUMNS)
+      .eq("store_id", storeId)
+      .order("created_at", { ascending: false })
+      .limit(6),
+  ]);
+
+  const categories = (categoryRows ?? []) as Category[];
+  const products = (productRows ?? []) as Product[];
+  const weekSalesLines = mapSaleLineRows((weekSaleLineRows ?? []) as unknown as SaleLineJoinRow[]);
+  const todaySalesLines = weekSalesLines.filter((line) => new Date(line.created_at) >= todayFrom);
+  const recentOrders = (recentOrderRows ?? []) as unknown as Pick<
+    OrderRow,
+    "id" | "invoice_number" | "total" | "status" | "payment_method" | "is_offline_sync" | "created_at" | "cashier"
+  >[];
+
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <div>
-        <h1 className="text-xl font-semibold">Dashboard</h1>
+        <h1 className="text-xl font-semibold">
+          {store?.name ? `${store.name} overview` : "Dashboard"}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Manage your store&apos;s catalog and inventory.
+          {profile?.full_name ? `Welcome back, ${profile.full_name.split(" ")[0]}.` : "Welcome back."}{" "}
+          Here&apos;s how the store is doing right now.
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link href="/dashboard/categories">
-          <Card className="transition-colors hover:bg-muted/50">
-            <CardHeader>
-              <FolderTree className="mb-2 h-5 w-5 text-muted-foreground" />
-              <CardTitle>Categories</CardTitle>
-              <CardDescription>
-                Build parent and subcategory hierarchies for your catalog.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-
-        <Link href="/dashboard/inventory">
-          <Card className="transition-colors hover:bg-muted/50">
-            <CardHeader>
-              <Boxes className="mb-2 h-5 w-5 text-muted-foreground" />
-              <CardTitle>Products & Inventory</CardTitle>
-              <CardDescription>
-                Track stock, pricing, and margins across every SKU.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </Link>
-      </div>
+      <HomeDashboard
+        categories={categories}
+        products={products}
+        todaySalesLines={todaySalesLines}
+        weekSalesLines={weekSalesLines}
+        recentOrders={recentOrders}
+        timezone={timezone}
+      />
     </div>
   );
 }

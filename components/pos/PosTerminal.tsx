@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LogOut, Receipt } from "lucide-react";
+import { LayoutDashboard, LogOut, Receipt } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
 import { useSync } from "@/components/providers/SyncProvider";
 import { ConnectionBadge } from "@/components/layout/ConnectionBadge";
@@ -23,11 +24,13 @@ import { SisterStoreModal } from "./SisterStoreModal";
 import { OpenRegisterDialog } from "./OpenRegisterDialog";
 import { CloseShiftModal } from "./CloseShiftModal";
 import { TerminalLock } from "./TerminalLock";
+import type { UserRole } from "@/lib/types/domain";
 
 interface PosTerminalProps {
   initialProducts: PosProduct[];
   categories: PosCategory[];
   storeId: string;
+  role: UserRole;
   cashierId: string;
   cashierName: string;
   storeName: string;
@@ -40,6 +43,7 @@ export function PosTerminal({
   initialProducts,
   categories,
   storeId,
+  role,
   cashierId,
   cashierName,
   storeName,
@@ -66,6 +70,7 @@ export function PosTerminal({
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [closeShiftOpen, setCloseShiftOpen] = useState(false);
   const [session, setSession] = useState<CashDrawerSession | null | "loading">("loading");
+  const [justClosedShift, setJustClosedShift] = useState(false);
 
   useEffect(() => {
     getOpenSession(storeId, cashierId)
@@ -167,6 +172,14 @@ export function PosTerminal({
     await logout();
   }
 
+  function handleCloseShiftRequest() {
+    if (cart.length > 0) {
+      toast.error("Finish or clear the current sale before closing your shift.");
+      return;
+    }
+    setCloseShiftOpen(true);
+  }
+
   const totals = calculateCartTotals(cart, taxRatePercent, taxModel, 0);
   const registerOpen = session !== "loading" && session !== null;
 
@@ -178,12 +191,24 @@ export function PosTerminal({
           <span className="text-xs text-muted-foreground">{cashierName}</span>
         </div>
         <div className="flex items-center gap-2">
+          {role !== "cashier" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="touch-target gap-1.5"
+              nativeButton={false}
+              render={<Link href="/dashboard" />}
+            >
+              <LayoutDashboard className="h-4 w-4" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Button>
+          )}
           {registerOpen && (
             <Button
               variant="outline"
               size="sm"
               className="touch-target gap-1.5"
-              onClick={() => setCloseShiftOpen(true)}
+              onClick={handleCloseShiftRequest}
             >
               <Receipt className="h-4 w-4" />
               <span className="hidden sm:inline">Close Shift / Z-Report</span>
@@ -256,7 +281,15 @@ export function PosTerminal({
       />
 
       {session === null && (
-        <OpenRegisterDialog storeId={storeId} cashierId={cashierId} onOpened={setSession} />
+        <OpenRegisterDialog
+          storeId={storeId}
+          cashierId={cashierId}
+          justClosedShift={justClosedShift}
+          onOpened={(next) => {
+            setJustClosedShift(false);
+            setSession(next);
+          }}
+        />
       )}
 
       {registerOpen && (
@@ -266,7 +299,11 @@ export function PosTerminal({
           session={session as CashDrawerSession}
           storeName={storeName}
           cashierName={cashierName}
-          onClosed={() => setSession(null)}
+          onClosed={() => {
+            setJustClosedShift(true);
+            setSession(null);
+            setCart([]);
+          }}
         />
       )}
 

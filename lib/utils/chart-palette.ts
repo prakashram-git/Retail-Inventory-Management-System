@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 
 /**
@@ -53,7 +54,15 @@ export interface ChartPalette {
 
 export function useChartPalette(): ChartPalette {
   const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme === "dark";
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // Theme is only knowable after hydration; this avoids an SSR/client mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
+
+  const dark = mounted && resolvedTheme === "dark";
 
   return {
     dark,

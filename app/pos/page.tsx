@@ -5,6 +5,7 @@ import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
 import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
 import { PosTerminal } from "@/components/pos/PosTerminal";
 import type { PosCategory, PosProduct } from "@/lib/pos/types";
+import type { UserRole } from "@/lib/types/domain";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,7 @@ export default async function PosPage() {
       initialProducts={(products ?? []) as unknown as PosProduct[]}
       categories={(categories ?? []) as PosCategory[]}
       storeId={resolvedStoreId}
+      role={profile!.role as UserRole}
       cashierId={profile!.id}
       cashierName={profile?.full_name || profile?.email || "Cashier"}
       storeName={store?.name ?? "Store"}

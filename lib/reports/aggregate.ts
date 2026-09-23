@@ -1,4 +1,5 @@
 import { localDateKey, localHour } from "./timezone";
+import type { PaymentMethod } from "@/lib/orders/types";
 import type {
   ReportsCategory,
   ReportsProduct,
@@ -126,6 +127,7 @@ export function buildHourlyVelocity(sales: ReportsSaleLine[], timeZone: string):
 export interface KpiSummary {
   grossRevenue: number;
   netProfit: number;
+  orderCount: number;
   averageOrderValue: number;
   shrinkageValue: number;
 }
@@ -160,7 +162,110 @@ export function buildKpiSummary(
     .filter((row) => SHRINKAGE_CHANGE_TYPES.has(row.change_type))
     .reduce((sum, row) => sum + row.quantity * row.cost_price, 0);
 
-  return { grossRevenue, netProfit, averageOrderValue, shrinkageValue };
+  return { grossRevenue, netProfit, orderCount: orderIds.size, averageOrderValue, shrinkageValue };
+}
+
+export interface TopProductRow {
+  productId: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  revenue: number;
+}
+
+/** Best sellers by net revenue over whatever range `sales` already covers. */
+export function buildTopProducts(sales: ReportsSaleLine[], limit = 5): TopProductRow[] {
+  const byProduct = new Map<string, TopProductRow>();
+
+  for (const line of sales) {
+    const qty = netQuantity(line);
+    if (qty <= 0 || !line.product_id) continue;
+
+    const existing = byProduct.get(line.product_id) ?? {
+      productId: line.product_id,
+      name: line.product_name,
+      sku: line.product_sku,
+      quantity: 0,
+      revenue: 0,
+    };
+    existing.quantity += qty;
+    existing.revenue += qty * line.unit_price;
+    byProduct.set(line.product_id, existing);
+  }
+
+  return Array.from(byProduct.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, limit);
+}
+
+export interface PaymentBreakdownSlice {
+  method: PaymentMethod;
+  revenue: number;
+  orders: number;
+  share: number;
+}
+
+/** Net revenue and order count per tender type, for settlement reconciliation. */
+export function buildPaymentBreakdown(sales: ReportsSaleLine[]): PaymentBreakdownSlice[] {
+  const byMethod = new Map<PaymentMethod, { revenue: number; orderIds: Set<string> }>();
+
+  for (const line of sales) {
+    const qty = netQuantity(line);
+    if (qty <= 0) continue;
+    const entry = byMethod.get(line.payment_method) ?? { revenue: 0, orderIds: new Set<string>() };
+    entry.revenue += qty * line.unit_price;
+    entry.orderIds.add(line.order_id);
+    byMethod.set(line.payment_method, entry);
+  }
+
+  const total = Array.from(byMethod.values()).reduce((sum, e) => sum + e.revenue, 0);
+
+  return Array.from(byMethod.entries())
+    .map(([method, entry]) => ({
+      method,
+      revenue: entry.revenue,
+      orders: entry.orderIds.size,
+      share: total > 0 ? entry.revenue / total : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
+export interface CashierPerformanceRow {
+  cashierName: string;
+  revenue: number;
+  orders: number;
+  averageOrderValue: number;
+}
+
+/** Net revenue, order count, and AOV per cashier — each order attributes to
+ * whoever rang it up, from its (single) cashier_id. */
+export function buildCashierPerformance(sales: ReportsSaleLine[]): CashierPerformanceRow[] {
+  const byCashier = new Map<string, { revenue: number; orderIds: Set<string> }>();
+
+  for (const line of sales) {
+    const qty = netQuantity(line);
+    if (qty <= 0) continue;
+    const entry = byCashier.get(line.cashier_name) ?? { revenue: 0, orderIds: new Set<string>() };
+    entry.revenue += qty * line.unit_price;
+    entry.orderIds.add(line.order_id);
+    byCashier.set(line.cashier_name, entry);
+  }
+
+  return Array.from(byCashier.entries())
+    .map(([cashierName, entry]) => ({
+      cashierName,
+      revenue: entry.revenue,
+      orders: entry.orderIds.size,
+      averageOrderValue: entry.orderIds.size > 0 ? entry.revenue / entry.orderIds.size : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
+/** Percent change vs a previous-period value; null means "not computable"
+ * (previous was zero but current isn't — an undefined percentage, not 0%). */
+export function percentChange(current: number, previous: number): number | null {
+  if (previous === 0) return current === 0 ? 0 : null;
+  return ((current - previous) / previous) * 100;
 }
 
 export interface DeadInventoryRow {

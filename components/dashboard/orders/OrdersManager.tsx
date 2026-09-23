@@ -24,8 +24,9 @@ import {
 } from "@/components/ui/select";
 import { TimeRangePicker } from "@/components/dashboard/TimeRangePicker";
 import { ORDERS_RANGE_PRESETS, type OrdersRangePreset } from "@/lib/orders/range";
+import { ORDER_STATUS_LABEL, ORDER_STATUS_VARIANT } from "@/lib/orders/status";
 import { OrderDetailSheet } from "./OrderDetailSheet";
-import type { OrderRow, OrderStatus } from "@/lib/orders/types";
+import type { OrderRow } from "@/lib/orders/types";
 
 type StatusFilter =
   | "all"
@@ -60,22 +61,6 @@ function matchesStatusFilter(order: OrderRow, filter: StatusFilter): boolean {
       return order.status === "partially_refunded";
   }
 }
-
-const STATUS_VARIANT: Record<OrderStatus, "outline" | "secondary" | "destructive"> = {
-  completed: "secondary",
-  completed_with_stock_variance: "outline",
-  refunded: "destructive",
-  partially_refunded: "outline",
-  voided: "destructive",
-};
-
-const STATUS_LABEL: Record<OrderStatus, string> = {
-  completed: "Completed",
-  completed_with_stock_variance: "Stock variance",
-  refunded: "Refunded",
-  partially_refunded: "Partially refunded",
-  voided: "Voided",
-};
 
 interface OrdersManagerProps {
   orders: OrderRow[];
@@ -198,7 +183,7 @@ export function OrdersManager({ orders, range, currentUserId }: OrdersManagerPro
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      <Badge variant={STATUS_VARIANT[order.status]}>{STATUS_LABEL[order.status]}</Badge>
+                      <Badge variant={ORDER_STATUS_VARIANT[order.status]}>{ORDER_STATUS_LABEL[order.status]}</Badge>
                       {order.is_offline_sync && <Badge variant="outline">Offline synced</Badge>}
                     </div>
                   </TableCell>

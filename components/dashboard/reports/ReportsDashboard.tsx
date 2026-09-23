@@ -2,18 +2,27 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Download, DollarSign, TrendingUp, Receipt as ReceiptIcon, TriangleAlert } from "lucide-react";
+import {
+  Download,
+  DollarSign,
+  TrendingUp,
+  Receipt as ReceiptIcon,
+  TriangleAlert,
+} from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
 import { TimeRangePicker } from "@/components/dashboard/TimeRangePicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { InventoryKpiGrid } from "@/components/dashboard/inventory/InventoryKpiGrid";
 import {
+  buildCashierPerformance,
   buildCategoryRevenue,
   buildDeadInventory,
   buildHourlyVelocity,
   buildKpiSummary,
+  buildPaymentBreakdown,
   buildRevenueVsCogsSeries,
+  percentChange,
 } from "@/lib/reports/aggregate";
 import { downloadCsv, toCsv } from "@/lib/reports/csv";
 import { REPORT_RANGE_PRESETS, type ReportRangePreset } from "@/lib/reports/timezone";
@@ -23,6 +32,9 @@ import { HourlyVelocityChart } from "./HourlyVelocityChart";
 import { DeadInventoryTable } from "./DeadInventoryTable";
 import { TillSessionsTable } from "./TillSessionsTable";
 import { StockMovementsTable } from "./StockMovementsTable";
+import { PaymentBreakdownCard } from "./PaymentBreakdownCard";
+import { CashierPerformanceTable } from "./CashierPerformanceTable";
+import { CustomDateRangePicker } from "./CustomDateRangePicker";
 import type {
   ReportsCategory,
   ReportsProduct,
@@ -34,23 +46,29 @@ import type {
 
 interface ReportsDashboardProps {
   salesLines: ReportsSaleLine[];
+  prevSalesLines: ReportsSaleLine[];
   categories: ReportsCategory[];
   products: ReportsProduct[];
   saleTouches: ReportsSaleTouch[];
   stockMovements: StockMovementRow[];
   tillSessions: TillSessionRow[];
   range: ReportRangePreset;
+  customFrom: string | null;
+  customTo: string | null;
   timezone: string;
 }
 
 export function ReportsDashboard({
   salesLines,
+  prevSalesLines,
   categories,
   products,
   saleTouches,
   stockMovements,
   tillSessions,
   range,
+  customFrom,
+  customTo,
   timezone,
 }: ReportsDashboardProps) {
   const router = useRouter();
@@ -60,6 +78,7 @@ export function ReportsDashboard({
     () => buildKpiSummary(salesLines, stockMovements),
     [salesLines, stockMovements]
   );
+  const prevKpis = useMemo(() => buildKpiSummary(prevSalesLines, []), [prevSalesLines]);
   const categorySlices = useMemo(
     () => buildCategoryRevenue(salesLines, categories),
     [salesLines, categories]
@@ -76,9 +95,15 @@ export function ReportsDashboard({
     () => buildDeadInventory(products, saleTouches),
     [products, saleTouches]
   );
+  const paymentBreakdown = useMemo(() => buildPaymentBreakdown(salesLines), [salesLines]);
+  const cashierPerformance = useMemo(() => buildCashierPerformance(salesLines), [salesLines]);
 
   function setRange(next: ReportRangePreset) {
     router.replace(`/dashboard/reports?range=${next}`);
+  }
+
+  function applyCustomRange(from: string, to: string) {
+    router.replace(`/dashboard/reports?range=custom&from=${from}&to=${to}`);
   }
 
   function exportSalesCsv() {
@@ -131,8 +156,16 @@ export function ReportsDashboard({
     <div className="flex flex-col gap-4">
       <Card size="sm">
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <TimeRangePicker value={range} onChange={setRange} presets={REPORT_RANGE_PRESETS} />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <TimeRangePicker value={range} onChange={setRange} presets={REPORT_RANGE_PRESETS} />
+            <CustomDateRangePicker
+              active={range === "custom"}
+              from={customFrom}
+              to={customTo}
+              onApply={applyCustomRange}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={exportSalesCsv}>
               <Download />
               Export sales CSV
@@ -151,13 +184,32 @@ export function ReportsDashboard({
 
       <InventoryKpiGrid
         items={[
-          { label: "Gross revenue", value: formatPrice(kpis.grossRevenue), icon: DollarSign, mono: true },
-          { label: "Net profit", value: formatPrice(kpis.netProfit), icon: TrendingUp, mono: true },
+          {
+            label: "Gross revenue",
+            value: formatPrice(kpis.grossRevenue),
+            icon: DollarSign,
+            mono: true,
+            delta: percentChange(kpis.grossRevenue, prevKpis.grossRevenue),
+          },
+          {
+            label: "Net profit",
+            value: formatPrice(kpis.netProfit),
+            icon: TrendingUp,
+            mono: true,
+            delta: percentChange(kpis.netProfit, prevKpis.netProfit),
+          },
+          {
+            label: "Orders",
+            value: String(kpis.orderCount),
+            icon: ReceiptIcon,
+            delta: percentChange(kpis.orderCount, prevKpis.orderCount),
+          },
           {
             label: "Average order value",
             value: formatPrice(kpis.averageOrderValue),
             icon: ReceiptIcon,
             mono: true,
+            delta: percentChange(kpis.averageOrderValue, prevKpis.averageOrderValue),
           },
           {
             label: "Shrinkage / variance",
@@ -175,6 +227,11 @@ export function ReportsDashboard({
       </div>
 
       <RevenueCogsAreaChart points={areaPoints} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <PaymentBreakdownCard slices={paymentBreakdown} />
+        <CashierPerformanceTable rows={cashierPerformance} />
+      </div>
 
       <TillSessionsTable rows={tillSessions} />
 

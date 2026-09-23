@@ -3,12 +3,17 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
 import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
-import { getRangeBounds, type ReportRangePreset } from "@/lib/reports/timezone";
+import {
+  getPreviousPeriodBounds,
+  getRangeBounds,
+  localDayRange,
+  type ReportRangePreset,
+} from "@/lib/reports/timezone";
+import { mapSaleLineRows, type SaleLineJoinRow } from "@/lib/reports/shape";
 import { ReportsDashboard } from "@/components/dashboard/reports/ReportsDashboard";
 import type {
   ReportsCategory,
   ReportsProduct,
-  ReportsSaleLine,
   ReportsSaleTouch,
   StockMovementRow,
   TillSessionRow,
@@ -16,19 +21,14 @@ import type {
 
 export const dynamic = "force-dynamic";
 
-const VALID_PRESETS = new Set(["today", "7d", "30d", "ytd"]);
+const VALID_PRESETS = new Set(["today", "7d", "30d", "ytd", "custom"]);
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const SALE_LINE_COLUMNS =
+  "order_id, quantity, refunded_quantity, unit_price, product:products(id, name, sku, category_id, cost_price), order:orders!inner(created_at, invoice_number, status, store_id, payment_method, cashier:profiles(full_name, email))";
 
 interface ReportsPageProps {
-  searchParams: Promise<{ range?: string }>;
-}
-
-interface SaleLineJoinRow {
-  order_id: string;
-  quantity: number;
-  refunded_quantity: number;
-  unit_price: number;
-  product: { id: string; name: string; sku: string; category_id: string | null; cost_price: number } | null;
-  order: { created_at: string; invoice_number: string };
+  searchParams: Promise<{ range?: string; from?: string; to?: string }>;
 }
 
 interface SaleTouchJoinRow {
@@ -64,6 +64,8 @@ interface TillSessionJoinRow {
 export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const params = await searchParams;
   const range = (VALID_PRESETS.has(params.range ?? "") ? params.range : "30d") as ReportRangePreset;
+  const customFromKey = params.from && DATE_KEY_PATTERN.test(params.from) ? params.from : null;
+  const customToKey = params.to && DATE_KEY_PATTERN.test(params.to) ? params.to : null;
 
   const supabase = await createClient();
   const cookieStore = await cookies();
@@ -89,11 +91,16 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     .single();
   const timezone = store?.timezone ?? "UTC";
 
-  const { from, to } = getRangeBounds(range, timezone);
+  const { from, to } =
+    range === "custom" && customFromKey && customToKey
+      ? { from: localDayRange(customFromKey, timezone).start, to: localDayRange(customToKey, timezone).end }
+      : getRangeBounds(range === "custom" ? "30d" : range, timezone);
+  const { from: prevFrom, to: prevTo } = getPreviousPeriodBounds(from, to);
 
   const [
     { data: categories },
     { data: saleLineRows },
+    { data: prevSaleLineRows },
     { data: products },
     { data: saleTouchRows },
     { data: stockMovementRows },
@@ -102,13 +109,18 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     supabase.from("categories").select("id, name, parent_id").eq("store_id", storeId),
     supabase
       .from("order_items")
-      .select(
-        "order_id, quantity, refunded_quantity, unit_price, product:products(id, name, sku, category_id, cost_price), order:orders!inner(created_at, invoice_number, status, store_id)"
-      )
+      .select(SALE_LINE_COLUMNS)
       .eq("order.store_id", storeId)
       .neq("order.status", "voided")
       .gte("order.created_at", from.toISOString())
       .lte("order.created_at", to.toISOString()),
+    supabase
+      .from("order_items")
+      .select(SALE_LINE_COLUMNS)
+      .eq("order.store_id", storeId)
+      .neq("order.status", "voided")
+      .gte("order.created_at", prevFrom.toISOString())
+      .lte("order.created_at", prevTo.toISOString()),
     supabase
       .from("products")
       .select("id, name, sku, category_id, current_stock, cost_price")
@@ -141,21 +153,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
       .limit(200),
   ]);
 
-  const salesLines: ReportsSaleLine[] = ((saleLineRows ?? []) as unknown as SaleLineJoinRow[]).map(
-    (row) => ({
-      order_id: row.order_id,
-      invoice_number: row.order.invoice_number,
-      created_at: row.order.created_at,
-      product_id: row.product?.id ?? "",
-      product_name: row.product?.name ?? "Unknown product",
-      product_sku: row.product?.sku ?? "",
-      category_id: row.product?.category_id ?? null,
-      quantity: row.quantity,
-      refunded_quantity: row.refunded_quantity,
-      unit_price: row.unit_price,
-      cost_price: row.product?.cost_price ?? 0,
-    })
-  );
+  const salesLines = mapSaleLineRows((saleLineRows ?? []) as unknown as SaleLineJoinRow[]);
+  const prevSalesLines = mapSaleLineRows((prevSaleLineRows ?? []) as unknown as SaleLineJoinRow[]);
 
   const saleTouches: ReportsSaleTouch[] = ((saleTouchRows ?? []) as unknown as SaleTouchJoinRow[]).map(
     (row) => ({
@@ -205,12 +204,15 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
       <ReportsDashboard
         salesLines={salesLines}
+        prevSalesLines={prevSalesLines}
         categories={(categories ?? []) as ReportsCategory[]}
         products={(products ?? []) as ReportsProduct[]}
         saleTouches={saleTouches}
         stockMovements={stockMovements}
         tillSessions={tillSessions}
         range={range}
+        customFrom={customFromKey}
+        customTo={customToKey}
         timezone={timezone}
       />
     </div>

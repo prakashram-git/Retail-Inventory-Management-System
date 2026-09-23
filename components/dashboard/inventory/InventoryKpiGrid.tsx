@@ -1,6 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +11,12 @@ interface KpiItem {
   icon: LucideIcon;
   tone?: "default" | "warning" | "destructive";
   mono?: boolean;
+  /** Percent change vs. a comparison period; null/undefined omits the badge
+   * (e.g. the previous period had no baseline to compare against). Positive
+   * isn't always "good" (shrinkage rising is bad), so callers that need
+   * inverted coloring pass `deltaInverse`. */
+  delta?: number | null;
+  deltaInverse?: boolean;
 }
 
 export function InventoryKpiGrid({ items }: { items: KpiItem[] }) {
@@ -33,10 +40,34 @@ export function InventoryKpiGrid({ items }: { items: KpiItem[] }) {
               <span className={cn("truncate text-lg font-semibold", item.mono && "font-mono")}>
                 {item.value}
               </span>
+              {item.delta != null && (
+                <DeltaBadge value={item.delta} inverse={item.deltaInverse} />
+              )}
             </div>
           </CardContent>
         </Card>
       ))}
     </div>
+  );
+}
+
+function DeltaBadge({ value, inverse }: { value: number; inverse?: boolean }) {
+  const isFlat = Math.abs(value) < 0.05;
+  const isUp = value > 0;
+  const isGood = isFlat ? null : inverse ? !isUp : isUp;
+
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-0.5 text-xs font-medium",
+        isFlat && "text-muted-foreground",
+        isGood === true && "text-emerald-600 dark:text-emerald-400",
+        isGood === false && "text-destructive"
+      )}
+    >
+      {!isFlat && (isUp ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
+      {isFlat ? "Flat" : `${Math.abs(value).toFixed(1)}%`}
+      <span className="font-normal text-muted-foreground">vs prev.</span>
+    </span>
   );
 }

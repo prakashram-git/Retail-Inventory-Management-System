@@ -1,3 +1,5 @@
+import type { PaymentMethod } from "@/lib/orders/types";
+
 export interface ReportsCategory {
   id: string;
   name: string;
@@ -17,6 +19,8 @@ export interface ReportsSaleLine {
   refunded_quantity: number;
   unit_price: number;
   cost_price: number;
+  payment_method: PaymentMethod;
+  cashier_name: string;
 }
 
 export interface ReportsProduct {
