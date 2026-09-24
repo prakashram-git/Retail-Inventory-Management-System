@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
+import type { CartLine } from "@/lib/pos/types";
 
 export interface CachedProduct {
   id: string;
@@ -33,6 +34,15 @@ export interface OfflineCategory {
   slug: string;
 }
 
+export interface ParkedCart {
+  /** `${store_id}:${user_id}` — one parked cart per cashier per store. */
+  id: string;
+  store_id: string;
+  user_id: string;
+  lines: CartLine[];
+  parked_at: string;
+}
+
 export interface OfflineHelpWorkflow {
   id: string;
   /** Role the payload was fetched for — a role change invalidates the cache. */
@@ -57,6 +67,7 @@ const db = new Dexie("MallRetailOfflineDB") as Dexie & {
   offline_orders_queue: EntityTable<OfflineOrderQueueEntry, "idempotency_key">;
   offline_categories: EntityTable<OfflineCategory, "id">;
   offline_help_workflows: EntityTable<OfflineHelpWorkflow, "id">;
+  parked_carts: EntityTable<ParkedCart, "id">;
 };
 
 db.version(1).stores({
@@ -69,6 +80,10 @@ db.version(1).stores({
 
 db.version(2).stores({
   offline_help_workflows: "id, category_id, cached_for_role, version, cached_at",
+});
+
+db.version(3).stores({
+  parked_carts: "id, store_id, user_id, parked_at",
 });
 
 export { db };

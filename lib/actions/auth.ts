@@ -1,7 +1,6 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
@@ -55,20 +54,24 @@ export async function login(formData: FormData): Promise<LoginResult> {
 }
 
 /**
- * `signOut()` revokes the refresh token server-side and has the SSR client
- * clear the `sb-*-auth-token` cookies via its own `setAll`, but the active
- * store selection is a separate app cookie it doesn't know about — clearing
- * it explicitly keeps the next login from silently reopening the last
- * super_admin's previously chosen store.
+ * Local-scope sign-out: revokes only THIS device's session, so the same
+ * account signed in on another terminal/device stays live. The active-store
+ * selection is a separate app cookie signOut() doesn't know about — clearing
+ * it keeps the next login from silently reopening the previous super_admin's
+ * chosen store.
+ *
+ * Returns JSON (not redirect()) so the client can navigate with
+ * `window.location.href`, a full page load that discards in-memory React
+ * state and Dexie listeners.
  */
-export async function logout() {
+export async function logout(): Promise<{ success: true; redirectUrl: string }> {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 
   const cookieStore = await cookies();
   cookieStore.delete(ACTIVE_STORE_COOKIE);
 
-  redirect("/login");
+  return { success: true, redirectUrl: "/login" };
 }
 
 /**

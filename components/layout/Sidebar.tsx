@@ -4,30 +4,19 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { logout } from "@/lib/actions/auth";
+import { useRef } from "react";
+import { useSessionGuard } from "@/components/auth/SessionProvider";
+import { useSync } from "@/components/providers/SyncProvider";
+import { ROLE_LABEL, StatusDot, initialsFor } from "./UserMenu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { NAV_ITEMS, matchActiveHref } from "./nav-items";
 import type { UserRole } from "@/lib/types/domain";
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  super_admin: "Super admin",
-  store_manager: "Store manager",
-  cashier: "Cashier",
-  ui_designer: "UI designer",
-};
-
-interface SidebarProfile {
-  full_name: string | null;
-  email: string;
-}
-
-function initialsFor(profile: SidebarProfile): string {
-  const source = profile.full_name?.trim() || profile.email;
-  return source.slice(0, 2).toUpperCase();
-}
-
-export function Sidebar({ role, profile }: { role: UserRole; profile: SidebarProfile }) {
+export function Sidebar({ role }: { role: UserRole }) {
   const pathname = usePathname();
+  const { user, requestSignOut } = useSessionGuard();
+  const { isOnline } = useSync();
+  const signOutRef = useRef<HTMLButtonElement | null>(null);
   const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
   const activeHref = matchActiveHref(pathname, items);
 
@@ -54,27 +43,34 @@ export function Sidebar({ role, profile }: { role: UserRole; profile: SidebarPro
         })}
       </div>
 
-      <div className="flex flex-col gap-2 border-t p-3">
-        <div className="flex items-center gap-2 px-1">
-          <Avatar size="sm">
-            <AvatarFallback>{initialsFor(profile)}</AvatarFallback>
-          </Avatar>
-          <div className="flex min-w-0 flex-col">
+      <div className="border-t p-3">
+        <div
+          data-testid="sidebar-user-card"
+          className="flex min-h-14 items-center gap-2 rounded-lg bg-sidebar-accent/40 p-2"
+        >
+          <span className="relative shrink-0">
+            <Avatar>
+              <AvatarFallback>{initialsFor(user.fullName, user.email)}</AvatarFallback>
+            </Avatar>
+            <StatusDot online={isOnline} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-sm font-medium text-sidebar-foreground">
-              {profile.full_name ?? profile.email}
+              {user.fullName ?? user.email}
             </span>
             <span className="truncate text-xs text-muted-foreground">{ROLE_LABEL[role]}</span>
           </div>
-        </div>
-        <form action={logout}>
           <button
-            type="submit"
-            className="touch-target flex w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/60"
+            type="button"
+            ref={signOutRef}
+            data-testid="sidebar-signout"
+            onClick={() => void requestSignOut(signOutRef.current)}
+            className="touch-target flex shrink-0 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium text-red-600 transition-all hover:bg-red-500/10 active:scale-95 dark:text-red-400"
           >
             <LogOut className="h-4 w-4" />
-            Log out
+            Sign Out
           </button>
-        </form>
+        </div>
       </div>
     </aside>
   );

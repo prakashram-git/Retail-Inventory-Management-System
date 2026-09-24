@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { LogOut } from "lucide-react";
 import { openSession, type CashDrawerSession } from "@/lib/pos/session";
-import { logout } from "@/lib/actions/auth";
+import { useSessionGuard } from "@/components/auth/SessionProvider";
 import { useHelp } from "@/components/help/HelpProvider";
 import {
   Dialog,
@@ -37,6 +37,7 @@ export function OpenRegisterDialog({
   const [isPending, startTransition] = useTransition();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { trainingMode } = useHelp();
+  const { signOutNow } = useSessionGuard();
 
   function submit() {
     if (trainingMode) {
@@ -58,7 +59,7 @@ export function OpenRegisterDialog({
 
   async function handleLogout() {
     setIsLoggingOut(true);
-    await logout();
+    await signOutNow();
   }
 
   return (

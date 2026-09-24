@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { LogOut, Palette } from "lucide-react";
-import { logout } from "@/lib/actions/auth";
+import { Palette } from "lucide-react";
+import { UserMenu } from "./UserMenu";
 import { StoreSwitcher } from "./StoreSwitcher";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ThemeToggle } from "./ThemeToggle";
@@ -31,15 +31,7 @@ export function Header({ role }: { role: UserRole }) {
         <ConnectionBadge />
         <HelpButton />
         <ThemeToggle />
-        <form action={logout} className="md:hidden">
-          <button
-            type="submit"
-            aria-label="Log out"
-            className="touch-target flex items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
-        </form>
+        <UserMenu />
       </div>
     </header>
   );

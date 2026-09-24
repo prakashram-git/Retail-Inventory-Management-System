@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SyncProvider } from "@/components/providers/SyncProvider";
+import { SessionProvider } from "@/components/auth/SessionProvider";
 import { HelpProvider } from "@/components/help/HelpProvider";
 import { StoreProvider } from "@/components/providers/StoreProvider";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
@@ -22,7 +23,7 @@ export default async function PosLayout({ children }: { children: React.ReactNod
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id, role, store_id, full_name")
+    .select("id, role, store_id, full_name, email")
     .eq("id", user.id)
     .single();
   if (profileError || !profile) redirect("/login");
@@ -57,7 +58,11 @@ export default async function PosLayout({ children }: { children: React.ReactNod
   return (
     <SyncProvider>
       <StoreProvider role={profile.role} activeStore={activeStore} stores={stores}>
-        <HelpProvider role={profile.role}>{children}</HelpProvider>
+        <SessionProvider
+          user={{ id: profile.id, fullName: profile.full_name, email: profile.email, role: profile.role }}
+        >
+          <HelpProvider role={profile.role}>{children}</HelpProvider>
+        </SessionProvider>
       </StoreProvider>
     </SyncProvider>
   );

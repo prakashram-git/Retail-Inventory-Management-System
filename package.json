@@ -15,7 +15,8 @@
     "help:seed": "tsx scripts/seed-help-content.ts",
     "help:check-drift": "tsx scripts/check-help-drift.ts",
     "help:refresh-assets": "tsx scripts/capture-workflow-screenshots.ts",
-    "test:help": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-help-suite.ts"
+    "test:help": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-help-suite.ts",
+    "test:logout": "tsx scripts/test-logout-suite.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

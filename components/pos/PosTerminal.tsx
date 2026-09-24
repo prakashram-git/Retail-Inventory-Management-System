@@ -4,14 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LayoutDashboard, LogOut, Receipt, KeyRound } from "lucide-react";
+import { LayoutDashboard, Receipt, KeyRound } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
 import { useSync } from "@/components/providers/SyncProvider";
 import { ConnectionBadge } from "@/components/layout/ConnectionBadge";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { AccountDialog } from "@/components/account/AccountDialog";
-import { logout } from "@/lib/actions/auth";
+import { useSessionGuard } from "@/components/auth/SessionProvider";
+import { UserMenu } from "@/components/layout/UserMenu";
+import { clearParkedCart, readParkedCart } from "@/lib/pos/parkedCart";
 import { useBarcodeScanner } from "@/lib/pos/use-barcode-scanner";
 import { validateGS1Barcode } from "@/lib/utils/barcode";
 import { calculateCartTotals } from "@/lib/pos/pricing";
@@ -82,6 +84,7 @@ export function PosTerminal({
   // it turns on, and restore them when it turns off, so practice sales (which
   // only decrement local state) never leave a trace.
   const { trainingMode } = useHelp();
+  const { registerPos } = useSessionGuard();
   const [prevTraining, setPrevTraining] = useState(false);
   const [trainingSnapshot, setTrainingSnapshot] = useState<{
     products: PosProduct[];
@@ -106,6 +109,42 @@ export function PosTerminal({
         toast.error(error instanceof Error ? error.message : "Could not check register status");
         setSession(null);
       });
+  }, [storeId, cashierId]);
+
+  // Expose cart/register state to the session guard so the sign-out dialog can
+  // warn about it (and park the cart), and clear it when this view unmounts.
+  const registerOpenForGuard = session !== "loading" && session !== null;
+  useEffect(() => {
+    registerPos({ cart, drawerOpen: registerOpenForGuard, unitNumber });
+  }, [registerPos, cart, registerOpenForGuard, unitNumber]);
+  useEffect(() => () => registerPos(null), [registerPos]);
+
+  // A cart parked before sign-out / lock comes back on the next visit.
+  useEffect(() => {
+    let cancelled = false;
+    readParkedCart(storeId, cashierId)
+      .then(async (parked) => {
+        if (!parked || cancelled) return;
+        const fresh = new Map(initialProducts.map((p) => [p.id, p]));
+        const restored = parked.lines
+          .map((line) => {
+            const product = fresh.get(line.product.id);
+            return product && product.current_stock > 0
+              ? { product, quantity: Math.min(line.quantity, product.current_stock) }
+              : null;
+          })
+          .filter((line): line is CartLine => line !== null);
+        await clearParkedCart(storeId, cashierId);
+        if (cancelled || restored.length === 0) return;
+        setCart((prev) => (prev.length === 0 ? restored : prev));
+        toast.success("Restored your parked cart");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // Once per mount: initialProducts is only the seed for matching lines.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, cashierId]);
 
   const addToCart = useCallback((product: PosProduct) => {
@@ -196,10 +235,6 @@ export function PosTerminal({
     if (isOnline && !trainingMode) router.refresh();
   }
 
-  async function handleSignOut() {
-    await logout();
-  }
-
   function handleCloseShiftRequest() {
     if (cart.length > 0) {
       toast.error("Finish or clear the current sale before closing your shift.");
@@ -264,10 +299,7 @@ export function PosTerminal({
             <KeyRound className="h-5 w-5" />
             <span className="sr-only">Account</span>
           </Button>
-          <Button variant="ghost" size="icon" className="touch-target" onClick={handleSignOut}>
-            <LogOut className="h-5 w-5" />
-            <span className="sr-only">Sign out</span>
-          </Button>
+          <UserMenu />
         </div>
       </header>
 

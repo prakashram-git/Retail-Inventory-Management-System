@@ -21,7 +21,14 @@ export async function verifyPosPin(pin: string): Promise<boolean> {
     .eq("id", userResult.user.id)
     .single();
 
-  if (!profile?.pos_pin_hash) return false;
+  if (profile?.pos_pin_hash) return bcrypt.compare(pin, profile.pos_pin_hash);
 
-  return bcrypt.compare(pin, profile.pos_pin_hash);
+  // No PIN on file (typically managers/admins using "Lock Terminal"): fall
+  // back to the account password so a lock never becomes a lock-out.
+  if (!userResult.user.email) return false;
+  const { error } = await supabase.auth.signInWithPassword({
+    email: userResult.user.email,
+    password: pin,
+  });
+  return !error;
 }

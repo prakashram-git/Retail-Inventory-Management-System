@@ -5,6 +5,7 @@ import { SyncProvider } from "@/components/providers/SyncProvider";
 import { StoreProvider } from "@/components/providers/StoreProvider";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
 import { HelpProvider } from "@/components/help/HelpProvider";
+import { SessionProvider } from "@/components/auth/SessionProvider";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -76,14 +77,14 @@ export async function Shell({ children }: { children: React.ReactNode }) {
   return (
     <SyncProvider>
       <StoreProvider role={profile.role} activeStore={activeStore} stores={stores}>
+        <SessionProvider
+          user={{ id: profile.id, fullName: profile.full_name, email: profile.email, role: profile.role }}
+        >
         <HelpProvider role={profile.role}>
         <div className="flex h-dvh flex-col">
           <Header role={profile.role} />
           <div className="flex min-h-0 min-w-0 flex-1">
-            <Sidebar
-              role={profile.role}
-              profile={{ full_name: profile.full_name, email: profile.email }}
-            />
+            <Sidebar role={profile.role} />
             <main className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">
               {children}
             </main>
@@ -91,6 +92,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           <MobileBottomNav role={profile.role} />
         </div>
         </HelpProvider>
+        </SessionProvider>
       </StoreProvider>
     </SyncProvider>
   );
