@@ -105,8 +105,14 @@ async function main() {
       const rowCount = await page.getByTestId("variant-row").count();
       await page.getByRole("button", { name: "Create product" }).click();
       await page.locator("#product-name").waitFor({ state: "detached", timeout: 10000 }).catch(() => {});
-      const { data: parent } = await admin.from("products").select("id, has_variants").eq("store_id", demoId).eq("sku", "TCSKUTEE").maybeSingle();
-      const { data: kids } = await admin.from("products").select("sku, parent_id").eq("parent_id", parent?.id ?? "00000000-0000-0000-0000-000000000000").order("sku");
+      // The server action can take several seconds on a cold deployment: poll instead of guessing.
+      let parent: { id: string; has_variants: boolean } | null = null;
+      let kids: { sku: string; parent_id: string }[] | null = null;
+      for (let i = 0; i < 30 && (kids?.length ?? 0) < 6; i++) {
+        ({ data: parent } = await admin.from("products").select("id, has_variants").eq("store_id", demoId).eq("sku", "TCSKUTEE").maybeSingle());
+        if (parent) ({ data: kids } = await admin.from("products").select("sku, parent_id").eq("parent_id", parent.id).order("sku"));
+        if ((kids?.length ?? 0) < 6) await page.waitForTimeout(1000);
+      }
       const kidSkus = (kids ?? []).map((k) => k.sku as string);
       const expected = ["BLK", "SLV"].flatMap((c) => ["S", "M", "L"].map((s) => `TCSKUTEE-${c}-${s}`)).sort();
       record("TC-SKU-04", "Variant matrix generation", rowCount === 6 && parent?.has_variants === true && kids?.length === 6 && new Set(kidSkus).size === 6 && (kids ?? []).every((k) => k.parent_id === parent?.id) && JSON.stringify(kidSkus) === JSON.stringify(expected),
