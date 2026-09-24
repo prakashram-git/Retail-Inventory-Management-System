@@ -15,6 +15,8 @@ export interface DashboardWidgetConfig {
   y: number;
   w: WidgetSize;
   h: number;
+  /** Only meaningful for widget_pinned_report today: { reportId: "REP-SALES-01" }. */
+  config?: { reportId?: string };
 }
 
 export type BorderRadiusStyle = "sharp" | "rounded" | "pill";
@@ -105,6 +107,12 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
     description: "30-day sell-through vs. the 60-80% healthy retail corridor",
     kind: "widget",
   },
+  {
+    id: "widget_pinned_report",
+    label: "Pinned Report",
+    description: "Any one of the 24 Report Library templates, pinned to the dashboard (pick which one in the widget itself)",
+    kind: "widget",
+  },
 ];
 
 export const DEFAULT_LAYOUT_CONFIG: DashboardWidgetConfig[] = [
@@ -121,6 +129,11 @@ export const DEFAULT_LAYOUT_CONFIG: DashboardWidgetConfig[] = [
   { id: "widget_sell_through", visible: true, x: 8, y: 13, w: 4, h: 4 },
   { id: "widget_recent_orders", visible: true, x: 0, y: 17, w: 7, h: 4 },
   { id: "widget_dead_stock", visible: true, x: 7, y: 17, w: 5, h: 4 },
+  // Hidden by default (no universal default report makes sense per store) —
+  // included here so it always appears in the layout builder's widget list,
+  // ready for a designer to toggle visible and pick a report, without
+  // needing a separate "add a new widget" flow.
+  { id: "widget_pinned_report", visible: false, x: 0, y: 21, w: 12, h: 4, config: { reportId: "REP-SALES-01" } },
 ];
 
 /**
@@ -131,7 +144,7 @@ export const DEFAULT_LAYOUT_CONFIG: DashboardWidgetConfig[] = [
  * constant since row height isn't independently adjustable in this builder.
  */
 export function packLayout(
-  items: { id: string; visible: boolean; w: WidgetSize }[]
+  items: { id: string; visible: boolean; w: WidgetSize; config?: { reportId?: string } }[]
 ): DashboardWidgetConfig[] {
   let cursorX = 0;
   let cursorY = 0;
@@ -147,6 +160,7 @@ export function packLayout(
       y: cursorY,
       w: item.w,
       h: WIDGET_CATALOG.find((w) => w.id === item.id)?.kind === "metric" ? 2 : 4,
+      ...(item.config ? { config: item.config } : {}),
     };
     cursorX += item.w;
     return config;

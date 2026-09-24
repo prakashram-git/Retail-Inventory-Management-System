@@ -10,7 +10,8 @@
     "backup:cli": "NODE_OPTIONS=--conditions=react-server tsx scripts/backup-cli.ts",
     "backup:test": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-backup-engine.ts",
     "test:layout-role": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-layout-role.ts",
-    "test:analytics": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-analytics-suite.ts"
+    "test:analytics": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-analytics-suite.ts",
+    "test:reporting": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-reporting-suite.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -26,6 +27,9 @@
     "cmdk": "^1.1.1",
     "cn": "^0.4.0",
     "dexie": "^4.4.6",
+    "exceljs": "^4.4.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.47.0",
     "next": "16.3.6",
     "next-themes": "^0.4.6",
@@ -44,6 +48,7 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/jspdf": "^1.3.3",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
     "@types/react": "^19",

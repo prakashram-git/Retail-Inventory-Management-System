@@ -37,6 +37,7 @@ import { CashierScorecard } from "@/components/dashboard/analytics/CashierScorec
 import { DeadStockAgingCard } from "@/components/dashboard/analytics/DeadStockAgingCard";
 import { HourlySalesHeatmap } from "@/components/dashboard/analytics/HourlySalesHeatmap";
 import { SellThroughGauge } from "@/components/dashboard/analytics/SellThroughGauge";
+import { PinnedReportCard } from "@/components/dashboard/analytics/PinnedReportCard";
 
 interface HomeDashboardProps {
   categories: Category[];
@@ -176,6 +177,13 @@ export function HomeDashboard({
     widget_dead_stock_aging: <DeadStockAgingCard className={widgetClassName} style={widgetStyle} />,
     widget_hourly_heatmap: <HourlySalesHeatmap className={widgetClassName} style={widgetStyle} />,
     widget_sell_through: <SellThroughGauge className={widgetClassName} style={widgetStyle} />,
+    widget_pinned_report: (
+      <PinnedReportCard
+        reportId={layoutConfig.find((w) => w.id === "widget_pinned_report")?.config?.reportId ?? "REP-SALES-01"}
+        className={widgetClassName}
+        style={widgetStyle}
+      />
+    ),
   };
 
   const visibleWidgets = layoutConfig

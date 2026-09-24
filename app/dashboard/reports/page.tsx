@@ -1,6 +1,9 @@
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { LibraryBig } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/button";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
 import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
 import {
@@ -195,11 +198,16 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
-      <div>
-        <h1 className="text-xl font-semibold">Reports</h1>
-        <p className="text-sm text-muted-foreground">
-          Category performance, revenue trends, and stock health for this store.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">Reports</h1>
+          <p className="text-sm text-muted-foreground">
+            Category performance, revenue trends, and stock health for this store.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href="/dashboard/reports/library" />}>
+          <LibraryBig /> Report Library (24 templates)
+        </Button>
       </div>
 
       <ReportsDashboard

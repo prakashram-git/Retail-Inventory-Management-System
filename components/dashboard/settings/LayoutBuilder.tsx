@@ -48,12 +48,14 @@ import type {
   BorderRadiusStyle,
   WidgetSize,
 } from "@/lib/dashboard/layout-types";
+import { REPORT_CATALOG } from "@/lib/reports/catalog";
 import { cn } from "@/lib/utils";
 
 interface BuilderItem {
   id: string;
   visible: boolean;
   w: WidgetSize;
+  config?: { reportId?: string };
 }
 
 const SIZE_STEPS: { value: WidgetSize; label: string }[] = [
@@ -90,7 +92,7 @@ export function LayoutBuilder({
   const [items, setItems] = useState<BuilderItem[]>(() =>
     [...initialLayoutConfig]
       .sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y))
-      .map((w) => ({ id: w.id, visible: w.visible, w: nearestStep(w.w) }))
+      .map((w) => ({ id: w.id, visible: w.visible, w: nearestStep(w.w), config: w.config }))
   );
   const [theme, setTheme] = useState<DashboardThemeConfig>(initialThemeConfig);
   const [scope, setScope] = useState<"store" | "global">("store");
@@ -111,6 +113,10 @@ export function LayoutBuilder({
 
   function toggleVisible(id: string) {
     setItems((prev) => prev.map((i) => (i.id === id ? { ...i, visible: !i.visible } : i)));
+  }
+
+  function setPinnedReport(id: string, reportId: string) {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, config: { ...i.config, reportId } } : i)));
   }
 
   function setSize(id: string, w: WidgetSize) {
@@ -183,6 +189,7 @@ export function LayoutBuilder({
                         item={item}
                         onToggleVisible={() => toggleVisible(item.id)}
                         onSetSize={(w) => setSize(item.id, w)}
+                        onSetReportId={(reportId) => setPinnedReport(item.id, reportId)}
                       />
                     ))}
                   </div>
@@ -362,10 +369,12 @@ function SortableWidgetRow({
   item,
   onToggleVisible,
   onSetSize,
+  onSetReportId,
 }: {
   item: BuilderItem;
   onToggleVisible: () => void;
   onSetSize: (w: WidgetSize) => void;
+  onSetReportId: (reportId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: item.id,
@@ -396,6 +405,21 @@ function SortableWidgetRow({
         <span className="truncate text-sm font-medium">{catalogEntry?.label ?? item.id}</span>
         <span className="truncate text-xs text-muted-foreground">{catalogEntry?.description}</span>
       </div>
+
+      {item.id === "widget_pinned_report" && (
+        <Select value={item.config?.reportId} onValueChange={(v) => v && onSetReportId(v)}>
+          <SelectTrigger className="w-48 shrink-0">
+            <SelectValue placeholder="Choose a report" />
+          </SelectTrigger>
+          <SelectContent>
+            {REPORT_CATALOG.map((r) => (
+              <SelectItem key={r.id} value={r.id}>
+                {r.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
       <div className="flex shrink-0 gap-1 rounded-lg bg-muted p-1">
         {SIZE_STEPS.map((step) => (
