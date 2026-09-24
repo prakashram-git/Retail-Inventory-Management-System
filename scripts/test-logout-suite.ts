@@ -88,6 +88,8 @@ async function tc03(browser: Browser) {
   const card = page.locator('[data-tour="pos-product-card"] button:not([disabled])').first();
   await card.click();
   await card.click();
+  // Let React commit both cart updates before invoking the shortcut.
+  await page.locator('[data-tour="pos-cart"]:visible').getByText("2", { exact: true }).first().waitFor({ timeout: 5000 });
   await page.keyboard.press("Control+Shift+KeyQ");
   await page.getByTestId("logout-dialog").waitFor({ timeout: 5000 });
   const cartWarning = (await page.getByTestId("logout-warning-cart").textContent()) ?? "";

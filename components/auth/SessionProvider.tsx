@@ -66,9 +66,12 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
   const [dialogOpen, setDialogOpen] = useState(false);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const posRef = useRef<PosSnapshot | null>(null);
-  useEffect(() => {
-    posRef.current = pos;
-  }, [pos]);
+  // Written synchronously (not via an effect) so a shortcut pressed right
+  // after a cart change never inspects a stale snapshot.
+  const registerPos = useCallback((snapshot: PosSnapshot | null) => {
+    posRef.current = snapshot;
+    setPos(snapshot);
+  }, []);
 
   const teardown = useCallback(async () => {
     let redirectUrl = "/login";
@@ -179,9 +182,9 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
       unlock,
       requestSignOut,
       signOutNow: teardown,
-      registerPos: setPos,
+      registerPos,
     }),
-    [user, pos?.unitNumber, locked, lock, unlock, requestSignOut, teardown]
+    [user, pos?.unitNumber, locked, lock, unlock, requestSignOut, teardown, registerPos]
   );
 
   return (
