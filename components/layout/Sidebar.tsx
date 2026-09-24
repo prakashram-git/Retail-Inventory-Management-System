@@ -32,7 +32,7 @@ export function Sidebar({ role, profile }: { role: UserRole; profile: SidebarPro
 
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r bg-sidebar md:flex">
-      <div className="flex flex-1 flex-col gap-1 p-3">
+      <div className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
         {items.map((item) => {
           const active = item.href === activeHref;
           return (

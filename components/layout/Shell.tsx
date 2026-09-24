@@ -75,14 +75,14 @@ export async function Shell({ children }: { children: React.ReactNode }) {
   return (
     <SyncProvider>
       <StoreProvider role={profile.role} activeStore={activeStore} stores={stores}>
-        <div className="flex min-h-dvh flex-col">
+        <div className="flex h-dvh flex-col">
           <Header />
-          <div className="flex min-w-0 flex-1">
+          <div className="flex min-h-0 min-w-0 flex-1">
             <Sidebar
               role={profile.role}
               profile={{ full_name: profile.full_name, email: profile.email }}
             />
-            <main className="min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">
+            <main className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-16 md:pb-0">
               {children}
             </main>
           </div>
