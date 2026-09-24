@@ -3,8 +3,9 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Lock, LogOut, UserCircle } from "lucide-react";
+import { HelpCircle, Lock, LogOut, UserCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useHelpCenter } from "@/components/help/HelpCenterContext";
 import { useSessionGuard } from "@/components/auth/SessionProvider";
 import { useStore } from "@/components/providers/StoreProvider";
 import { useSync } from "@/components/providers/SyncProvider";
@@ -22,6 +23,7 @@ export function MobileBottomNav({ role }: { role: UserRole }) {
   const activeHref = matchActiveHref(pathname, items);
   const { user, lock, requestSignOut } = useSessionGuard();
   const { storeName } = useStore();
+  const { openHelp } = useHelpCenter();
   const { isOnline } = useSync();
   const [open, setOpen] = useState(false);
   const profileRef = useRef<HTMLButtonElement | null>(null);
@@ -79,6 +81,20 @@ export function MobileBottomNav({ role }: { role: UserRole }) {
             </div>
           </SheetHeader>
           <div className="flex flex-col gap-2 px-4">
+            <Button
+              variant="outline"
+              className="touch-target justify-start"
+              data-testid="mobile-help-btn"
+              onClick={() => {
+                setOpen(false);
+                // Wait for this sheet's backdrop to finish closing so the
+                // help drawer isn't opened underneath / dismissed by it.
+                window.setTimeout(() => openHelp(), 250);
+              }}
+            >
+              <HelpCircle />
+              Help &amp; Tutorials
+            </Button>
             <Button
               variant="outline"
               className="touch-target justify-start"

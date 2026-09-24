@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -12,37 +10,19 @@ import { usePathname, useRouter } from "next/navigation";
 import { getHelpPayload, getHelpProgress, saveHelpProgress } from "@/lib/actions/help";
 import { bundledHelp, cacheHelpPayload, readCachedHelp } from "@/lib/help/cache";
 import type { HelpPayload, HelpProgress, HelpWorkflow } from "@/lib/help/types";
+import { HelpCenterContext, type HelpCenterContextValue } from "./HelpCenterContext";
 import type { UserRole } from "@/lib/types/domain";
 import { HelpCenterSheet } from "./HelpCenterSheet";
 import { SpotlightTour } from "./SpotlightTour";
-
-interface HelpContextValue {
-  payload: HelpPayload;
-  progress: Record<string, HelpProgress>;
-  role: UserRole;
-  helpOpen: boolean;
-  setHelpOpen: (open: boolean) => void;
-  startTour: (workflowId: string) => void;
-  activeWorkflow: HelpWorkflow | null;
-  /** Training Sandbox: transaction actions must not persist anything. */
-  trainingMode: boolean;
-  setTrainingMode: (on: boolean) => void;
-}
-
-const HelpContext = createContext<HelpContextValue | null>(null);
-
-export function useHelp() {
-  const ctx = useContext(HelpContext);
-  if (!ctx) throw new Error("useHelp must be used within a HelpProvider");
-  return ctx;
-}
 
 export function HelpProvider({ role, children }: { role: UserRole; children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [payload, setPayload] = useState<HelpPayload>(() => bundledHelp(role));
   const [progress, setProgress] = useState<Record<string, HelpProgress>>({});
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [activeWorkflowId, setActiveWorkflowId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [activeWorkflow, setActiveWorkflow] = useState<HelpWorkflow | null>(null);
   const [trainingMode, setTrainingMode] = useState(false);
 
@@ -71,27 +51,50 @@ export function HelpProvider({ role, children }: { role: UserRole; children: Rea
     };
   }, [role]);
 
-  // F1 toggles the drawer from anywhere.
+  const openHelp = useCallback((workflowId?: string) => {
+    setActiveWorkflowId(workflowId ?? null);
+    setIsOpen(true);
+  }, []);
+  const closeHelp = useCallback(() => {
+    setIsOpen(false);
+    setActiveWorkflowId(null);
+  }, []);
+  const toggleHelp = useCallback(() => {
+    setIsOpen((open) => !open);
+    setActiveWorkflowId(null);
+  }, []);
+
+  // F1 toggles the drawer from anywhere; "?" does too, unless the user is typing.
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key === "F1") {
         event.preventDefault();
-        setHelpOpen((open) => !open);
+        toggleHelp();
+        return;
+      }
+      if (event.key === "?" && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const el = event.target as HTMLElement | null;
+        const typing =
+          !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+        if (!typing) {
+          event.preventDefault();
+          toggleHelp();
+        }
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [toggleHelp]);
 
   const startTour = useCallback(
     (workflowId: string) => {
       const wf = payload.workflows.find((w) => w.id === workflowId);
       if (!wf) return;
-      setHelpOpen(false);
+      closeHelp();
       if (wf.target_route && wf.target_route !== pathname) router.push(wf.target_route);
       setActiveWorkflow(wf);
     },
-    [payload, pathname, router]
+    [payload, pathname, router, closeHelp]
   );
 
   const finishTour = useCallback(
@@ -119,23 +122,28 @@ export function HelpProvider({ role, children }: { role: UserRole; children: Rea
     [activeWorkflow]
   );
 
-  const value = useMemo<HelpContextValue>(
+  const value = useMemo<HelpCenterContextValue>(
     () => ({
+      isOpen,
+      openHelp,
+      closeHelp,
+      toggleHelp,
+      activeWorkflowId,
+      searchQuery,
+      setSearchQuery,
       payload,
       progress,
       role,
-      helpOpen,
-      setHelpOpen,
       startTour,
       activeWorkflow,
       trainingMode,
       setTrainingMode,
     }),
-    [payload, progress, role, helpOpen, startTour, activeWorkflow, trainingMode]
+    [isOpen, openHelp, closeHelp, toggleHelp, activeWorkflowId, searchQuery, payload, progress, role, startTour, activeWorkflow, trainingMode]
   );
 
   return (
-    <HelpContext.Provider value={value}>
+    <HelpCenterContext.Provider value={value}>
       {children}
       <HelpCenterSheet />
       {activeWorkflow && (
@@ -147,6 +155,6 @@ export function HelpProvider({ role, children }: { role: UserRole; children: Rea
           onExit={finishTour}
         />
       )}
-    </HelpContext.Provider>
+    </HelpCenterContext.Provider>
   );
 }

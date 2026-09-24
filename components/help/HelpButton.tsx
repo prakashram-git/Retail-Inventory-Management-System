@@ -2,19 +2,20 @@
 
 import { HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useHelp } from "./HelpProvider";
+import { useHelpCenter } from "./HelpCenterContext";
 
-export function HelpButton() {
-  const { setHelpOpen, trainingMode } = useHelp();
+/** `workflowId` deep-links the drawer to one workflow (e.g. the POS uses wf_barcode_checkout). */
+export function HelpButton({ workflowId }: { workflowId?: string }) {
+  const { openHelp, trainingMode } = useHelpCenter();
   return (
     <Button
       variant="ghost"
       size="icon"
       className="touch-target relative"
-      aria-label="Help Center (F1)"
-      title="Help Center (F1)"
+      aria-label="Open Help Center"
+      title="Help Center (F1 or ?)"
       data-tour="pos-help-btn"
-      onClick={() => setHelpOpen(true)}
+      onClick={() => openHelp(workflowId)}
     >
       <HelpCircle className="h-5 w-5" />
       {trainingMode && (

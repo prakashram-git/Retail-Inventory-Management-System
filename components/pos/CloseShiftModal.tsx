@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Printer, CheckCircle2 } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
-import { useHelp } from "@/components/help/HelpProvider";
+import { useHelpCenter } from "@/components/help/HelpCenterContext";
 import { closeSession, getSessionSalesReport, type SessionSalesReport } from "@/lib/pos/session";
 import type { CashDrawerSession } from "@/lib/pos/session";
 import {
@@ -38,7 +38,7 @@ export function CloseShiftModal({
   onClosed,
 }: CloseShiftModalProps) {
   const { formatPrice } = useStore();
-  const { trainingMode } = useHelp();
+  const { trainingMode } = useHelpCenter();
   const [countedCash, setCountedCash] = useState("");
   const [notes, setNotes] = useState("");
   const [isPending, startTransition] = useTransition();

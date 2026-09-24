@@ -7,7 +7,7 @@ import { useStore } from "@/components/providers/StoreProvider";
 import { useSync } from "@/components/providers/SyncProvider";
 import { getQuickTenderDenominations } from "@/lib/utils/currency";
 import { submitCheckout } from "@/lib/pos/checkout";
-import { useHelp } from "@/components/help/HelpProvider";
+import { useHelpCenter } from "@/components/help/HelpCenterContext";
 import type { CartTotals } from "@/lib/pos/pricing";
 import type { CartLine, PaymentMethod } from "@/lib/pos/types";
 import {
@@ -67,7 +67,7 @@ export function CheckoutModal({
 }: CheckoutModalProps) {
   const { formatPrice, currency } = useStore();
   const { isOnline } = useSync();
-  const { trainingMode } = useHelp();
+  const { trainingMode } = useHelpCenter();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountTendered, setAmountTendered] = useState("0");
   const [authCode, setAuthCode] = useState("");

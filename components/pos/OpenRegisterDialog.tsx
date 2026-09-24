@@ -2,10 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { LogOut } from "lucide-react";
+import { HelpCircle, LogOut } from "lucide-react";
 import { openSession, type CashDrawerSession } from "@/lib/pos/session";
 import { useSessionGuard } from "@/components/auth/SessionProvider";
-import { useHelp } from "@/components/help/HelpProvider";
+import { useHelpCenter } from "@/components/help/HelpCenterContext";
 import {
   Dialog,
   DialogContent,
@@ -36,7 +36,7 @@ export function OpenRegisterDialog({
   const [openingFloat, setOpeningFloat] = useState("0");
   const [isPending, startTransition] = useTransition();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const { trainingMode } = useHelp();
+  const { trainingMode, openHelp } = useHelpCenter();
   const { signOutNow } = useSessionGuard();
 
   function submit() {
@@ -94,6 +94,18 @@ export function OpenRegisterDialog({
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           <Button onClick={submit} disabled={isPending || isLoggingOut} className="w-full" data-tour="pos-open-submit">
             {isPending ? "Opening..." : "Open register"}
+          </Button>
+          {/* The register dialog is modal, so the header Help button is unreachable
+              while it is open — give the same entry point here (F1 also works). */}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => openHelp("wf_open_till")}
+            disabled={isPending || isLoggingOut}
+            className="w-full"
+          >
+            <HelpCircle />
+            Need help? (F1)
           </Button>
           <Button
             type="button"

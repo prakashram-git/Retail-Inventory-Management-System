@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { HelpCircle, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef } from "react";
+import { useHelpCenter } from "@/components/help/HelpCenterContext";
 import { useSessionGuard } from "@/components/auth/SessionProvider";
 import { useSync } from "@/components/providers/SyncProvider";
 import { ROLE_LABEL, StatusDot, initialsFor } from "./UserMenu";
@@ -16,6 +17,7 @@ export function Sidebar({ role }: { role: UserRole }) {
   const pathname = usePathname();
   const { user, requestSignOut } = useSessionGuard();
   const { isOnline } = useSync();
+  const { openHelp } = useHelpCenter();
   const signOutRef = useRef<HTMLButtonElement | null>(null);
   const items = NAV_ITEMS.filter((item) => item.roles.includes(role));
   const activeHref = matchActiveHref(pathname, items);
@@ -43,7 +45,20 @@ export function Sidebar({ role }: { role: UserRole }) {
         })}
       </div>
 
-      <div className="border-t p-3">
+      <div className="flex flex-col gap-2 border-t p-3">
+        <button
+          type="button"
+          data-testid="sidebar-help"
+          onClick={(e) => {
+            e.preventDefault();
+            openHelp();
+          }}
+          className="touch-target flex items-center gap-3 rounded-md px-3 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-sidebar-accent/60"
+        >
+          <HelpCircle className="h-4 w-4" />
+          Help &amp; Tutorials
+          <kbd className="ml-auto rounded border px-1 text-[10px] text-muted-foreground">F1</kbd>
+        </button>
         <div
           data-testid="sidebar-user-card"
           className="flex min-h-14 items-center gap-2 rounded-lg bg-sidebar-accent/40 p-2"

@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
   // The help-sync cron hashes UI source files at runtime; make sure they ship.
   outputFileTracingIncludes: {
     "/api/cron/help-sync": ["./components/**/*.tsx", "./app/pos/page.tsx", "./lib/pos/checkout.ts"],
+    "/dashboard/settings/help": ["./components/**/*.tsx", "./app/pos/page.tsx", "./lib/pos/checkout.ts"],
   },
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts", "dexie"],

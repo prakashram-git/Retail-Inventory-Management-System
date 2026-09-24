@@ -103,7 +103,7 @@ async function tc03(browser: Browser) {
   const page = await loginAs(browser, "Cashier");
   await page.goto(`${BASE_URL}/pos`, { waitUntil: "networkidle" });
   await page.keyboard.press("F1");
-  await page.getByTestId("help-wf-wf_open_till").getByRole("button", { name: "Start Step-by-Step Tour" }).click();
+  await page.getByTestId("help-wf-wf_open_till").getByRole("button", { name: "Start Interactive Tour" }).click();
   const card = page.getByTestId("spotlight-card");
   await card.waitFor({ timeout: 5000 });
   let trapped = true;

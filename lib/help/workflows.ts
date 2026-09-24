@@ -66,7 +66,7 @@ export const HELP_WORKFLOWS: WorkflowDefinition[] = [
     version: "1.0.0",
     sourceFiles: ["components/pos/OpenRegisterDialog.tsx", ...POS],
     steps: [
-      step(1, "Count your starting cash", "Count the notes and coins in the drawer and enter the total as your opening float.", "pos-open-float", "input"),
+      step(1, "Count your starting cash", "Count the notes and coins in the drawer and enter the total as your opening float. Count before looking at any system figure.", "pos-open-float", "input"),
       step(2, "Open the register", "Tap Open register. Sales are now attached to this shift and its Z-Report.", "pos-open-submit", "click", "top"),
       step(3, "You are ready to sell", "The catalog and cart are now active. Online or offline, every sale is recorded against this till.", "pos-cart", "observe", "left"),
     ],
@@ -121,7 +121,7 @@ export const HELP_WORKFLOWS: WorkflowDefinition[] = [
     sourceFiles: ["components/dashboard/orders/OrdersManager.tsx", "components/dashboard/orders/OrderDetailSheet.tsx"],
     steps: [
       step(1, "Find the order", "Search by invoice number, then open the order from the list.", "orders-table", "click", "top"),
-      step(2, "Start the return", "Choose Return / Refund in the order details.", "orders-return-btn", "click", "left"),
+      step(2, "Start the return", "Choose Return / Refund in the order details, select the items coming back, add an optional reason, and confirm. Stock is restored and a refund record is created.", "orders-return-btn", "click", "left"),
     ],
   },
   {

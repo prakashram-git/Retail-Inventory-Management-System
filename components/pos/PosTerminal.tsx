@@ -25,7 +25,7 @@ import { MobileCartBar } from "./MobileCartBar";
 import { CheckoutModal } from "./CheckoutModal";
 import { SisterStoreModal } from "./SisterStoreModal";
 import { HelpButton } from "@/components/help/HelpButton";
-import { useHelp } from "@/components/help/HelpProvider";
+import { useHelpCenter } from "@/components/help/HelpCenterContext";
 import { OpenRegisterDialog } from "./OpenRegisterDialog";
 import { CloseShiftModal } from "./CloseShiftModal";
 import { TerminalLock } from "./TerminalLock";
@@ -83,7 +83,7 @@ export function PosTerminal({
   // Training sandbox: snapshot the real catalog stock and register session when
   // it turns on, and restore them when it turns off, so practice sales (which
   // only decrement local state) never leave a trace.
-  const { trainingMode } = useHelp();
+  const { trainingMode } = useHelpCenter();
   const { registerPos } = useSessionGuard();
   const [prevTraining, setPrevTraining] = useState(false);
   const [trainingSnapshot, setTrainingSnapshot] = useState<{
@@ -288,7 +288,7 @@ export function PosTerminal({
             </Button>
           )}
           <span data-tour="pos-connection"><ConnectionBadge /></span>
-          <HelpButton />
+          <HelpButton workflowId="wf_barcode_checkout" />
           <ThemeToggle />
           <Button
             variant="ghost"

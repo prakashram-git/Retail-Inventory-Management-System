@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import * as Icons from "lucide-react";
 import { BookOpen, CheckCircle2, Clock, FlaskConical, Play, Search, TriangleAlert } from "lucide-react";
 import {
@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { fallbackIllustration } from "@/lib/help/illustrations";
 import type { HelpWorkflow } from "@/lib/help/types";
-import { useHelp } from "./HelpProvider";
+import { useHelpCenter } from "./HelpCenterContext";
 
 function Highlight({ text, query }: { text: string; query: string }) {
   const q = query.trim();
@@ -65,10 +65,35 @@ function StepImage({ wf, stepIndex }: { wf: HelpWorkflow; stepIndex: number }) {
 }
 
 export function HelpCenterSheet() {
-  const { helpOpen, setHelpOpen, payload, progress, startTour, trainingMode, setTrainingMode, role } =
-    useHelp();
-  const [query, setQuery] = useState("");
+  const {
+    isOpen,
+    closeHelp,
+    activeWorkflowId,
+    searchQuery: query,
+    setSearchQuery: setQuery,
+    payload,
+    progress,
+    startTour,
+    trainingMode,
+    setTrainingMode,
+    role,
+  } = useHelpCenter();
   const [reading, setReading] = useState<string | null>(null);
+
+  // Deep link: openHelp("wf_x") expands that workflow and scrolls it into view.
+  useEffect(() => {
+    if (!isOpen || !activeWorkflowId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReading(activeWorkflowId);
+    const t = window.setTimeout(
+      () =>
+        document
+          .querySelector(`[data-testid="help-wf-${activeWorkflowId}"]`)
+          ?.scrollIntoView({ block: "start", behavior: "smooth" }),
+      250
+    );
+    return () => window.clearTimeout(t);
+  }, [isOpen, activeWorkflowId]);
 
   const groups = useMemo(
     () =>
@@ -84,7 +109,7 @@ export function HelpCenterSheet() {
   const showDrift = role === "super_admin" || role === "ui_designer";
 
   return (
-    <Sheet open={helpOpen} onOpenChange={setHelpOpen}>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && closeHelp()}>
       <SheetContent
         className="w-full gap-0 bg-background/75 backdrop-blur-xl data-[side=right]:sm:max-w-md"
         data-testid="help-sheet"
@@ -171,7 +196,7 @@ export function HelpCenterSheet() {
                         <div className="mt-3 flex flex-wrap gap-2">
                           <Button size="sm" onClick={() => startTour(wf.id)}>
                             <Play />
-                            Start Step-by-Step Tour
+                            Start Interactive Tour
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => setReading(open ? null : wf.id)}>
                             <BookOpen />

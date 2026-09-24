@@ -3,6 +3,9 @@ import { CheckCircle2, TriangleAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdminMaintenanceCard } from "@/components/help/AdminMaintenanceCard";
+import { getHelpMaintenanceStatusAction } from "@/lib/actions/helpAdmin";
+import { HELP_WORKFLOWS } from "@/lib/help/workflows";
 import type { HelpStep } from "@/lib/help/types";
 
 export const dynamic = "force-dynamic";
@@ -26,15 +29,16 @@ export default async function HelpManagementPage() {
   const rows = workflows ?? [];
   const drifted = rows.filter((w) => w.drift_detected).length;
 
+  const status = await getHelpMaintenanceStatusAction();
+
   return (
+    <div className="flex flex-col gap-4">
+      <AdminMaintenanceCard expectedWorkflows={HELP_WORKFLOWS.length} initialStatus={status} />
     <Card>
       <CardHeader>
         <CardTitle>Help Center content</CardTitle>
         <CardDescription>
-          {rows.length} workflows. Screenshots are regenerated with{" "}
-          <code className="rounded bg-muted px-1">npm run help:refresh-assets</code>; drift is checked by{" "}
-          <code className="rounded bg-muted px-1">npm run help:check-drift</code> and the post-deploy cron.
-          {drifted > 0 && ` ${drifted} need attention.`}
+          {rows.length} workflows{drifted > 0 ? `, ${drifted} need attention` : ""}.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
@@ -65,5 +69,6 @@ export default async function HelpManagementPage() {
         })}
       </CardContent>
     </Card>
+    </div>
   );
 }
