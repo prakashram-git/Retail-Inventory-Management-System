@@ -169,7 +169,12 @@ export function LayoutBuilder({
               <CardDescription>Drag the handle to reorder. Order flows left-to-right, top-to-bottom.</CardDescription>
             </CardHeader>
             <CardContent>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <DndContext
+                id="dashboard-layout-builder"
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
                 <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
                   <div className="flex flex-col gap-2">
                     {items.map((item) => (
