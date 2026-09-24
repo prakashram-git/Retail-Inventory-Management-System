@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { InviteStaffDialog } from "./InviteStaffDialog";
 import { StaffAssignmentDialog } from "./StaffAssignmentDialog";
+import { DeleteRowButton } from "./DeleteRowButton";
+import { deleteStaff } from "@/lib/actions/staff";
 import type { StaffMember, UserRole } from "@/lib/types/domain";
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -56,6 +58,7 @@ export function StaffManager({ staff, stores }: StaffManagerProps) {
                   <TableHead>Store</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-8" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -86,6 +89,13 @@ export function StaffManager({ staff, stores }: StaffManagerProps) {
                       <Badge variant={member.is_active ? "secondary" : "outline"}>
                         {member.is_active ? "Active" : "Deactivated"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DeleteRowButton
+                        itemLabel={member.full_name ?? member.email}
+                        onConfirm={() => deleteStaff(member.id)}
+                        softDeleteNote="If they have sales or shift history, they'll be deactivated instead of removed."
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

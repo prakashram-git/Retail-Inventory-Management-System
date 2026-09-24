@@ -179,3 +179,36 @@ export async function resetStaffPassword(id: string, customPassword?: string) {
 
   return { email: profile.email as string, tempPassword: newPassword };
 }
+
+/**
+ * Attempts a real delete first; falls back to deactivating when the account
+ * has order/inventory/cash-drawer history — those tables' foreign keys to
+ * profiles.id have no cascade (same reasoning as deleteProduct being a soft
+ * delete), so a hard delete on a staff member with any sales history fails.
+ * GoTrue's admin deleteUser doesn't surface a distinguishable error code for
+ * that case, so any failure here is treated as "has history" and falls back
+ * rather than trying to parse its message.
+ */
+export async function deleteStaff(id: string) {
+  const { supabase } = await requireSuperAdmin();
+
+  const { data: userResult } = await supabase.auth.getUser();
+  if (userResult.user?.id === id) {
+    throw new Error("You cannot delete your own account.");
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(id);
+  if (error) {
+    const { error: deactivateError } = await admin
+      .from("profiles")
+      .update({ is_active: false })
+      .eq("id", id);
+    if (deactivateError) throw new Error(deactivateError.message);
+    revalidatePath("/dashboard/settings/users");
+    return { softDeleted: true };
+  }
+
+  revalidatePath("/dashboard/settings/users");
+  return { softDeleted: false };
+}

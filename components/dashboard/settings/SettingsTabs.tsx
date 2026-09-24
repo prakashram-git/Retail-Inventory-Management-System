@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Store, Image as ImageIcon, Users, KeyRound } from "lucide-react";
+import { Store, Image as ImageIcon, Users, KeyRound, ShieldCheck, DatabaseBackup } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types/domain";
 
@@ -16,10 +16,22 @@ const SETTINGS_TABS = [
   },
   { href: "/dashboard/settings/users", label: "Staff", icon: Users, roles: ["super_admin"] },
   {
+    href: "/dashboard/settings/roles",
+    label: "Roles",
+    icon: ShieldCheck,
+    roles: ["super_admin", "store_manager"],
+  },
+  {
     href: "/dashboard/settings/account",
     label: "Account",
     icon: KeyRound,
     roles: ["super_admin", "store_manager"],
+  },
+  {
+    href: "/dashboard/settings/backup",
+    label: "Backup",
+    icon: DatabaseBackup,
+    roles: ["super_admin"],
   },
 ] as const;
 

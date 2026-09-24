@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StoreDialog } from "./StoreDialog";
+import { DeleteRowButton } from "./DeleteRowButton";
+import { deleteStore } from "@/lib/actions/stores";
 import type { StoreDirectoryEntry } from "@/lib/types/domain";
 
 export function StoreManager({ stores }: { stores: StoreDirectoryEntry[] }) {
@@ -47,6 +49,7 @@ export function StoreManager({ stores }: { stores: StoreDirectoryEntry[] }) {
                   <TableHead>Timezone</TableHead>
                   <TableHead>Tax model</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-8" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -73,6 +76,13 @@ export function StoreManager({ stores }: { stores: StoreDirectoryEntry[] }) {
                       <Badge variant={store.is_active ? "secondary" : "outline"}>
                         {store.is_active ? "Active" : "Inactive"}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <DeleteRowButton
+                        itemLabel={store.name}
+                        onConfirm={() => deleteStore(store.id)}
+                        softDeleteNote="If it has products, orders, or staff assigned, it'll be deactivated instead of removed."
+                      />
                     </TableCell>
                   </TableRow>
                 ))}

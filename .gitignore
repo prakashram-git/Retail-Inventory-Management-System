@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local backup archives — encrypted, but keeping raw exports of the db out of git regardless
+/backups
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
