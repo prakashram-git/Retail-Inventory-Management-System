@@ -60,7 +60,7 @@ export async function proxy(request: NextRequest) {
     return redirectWithRefreshedSession(loginUrl);
   }
 
-  if (user && pathname.startsWith("/dashboard")) {
+  if (user && (pathname === "/" || pathname.startsWith("/dashboard"))) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
@@ -69,6 +69,10 @@ export async function proxy(request: NextRequest) {
 
     if (profile?.role === "cashier") {
       return redirectWithRefreshedSession(new URL("/pos", request.url));
+    }
+
+    if (pathname === "/") {
+      return redirectWithRefreshedSession(new URL("/dashboard", request.url));
     }
   }
 
