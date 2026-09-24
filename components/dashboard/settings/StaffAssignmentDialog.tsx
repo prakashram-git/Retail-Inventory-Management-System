@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
@@ -47,6 +48,8 @@ export function StaffAssignmentDialog({
   const [resetResult, setResetResult] = useState<{ email: string; tempPassword: string } | null>(
     null
   );
+  const [resetPanelOpen, setResetPanelOpen] = useState(false);
+  const [customPassword, setCustomPassword] = useState("");
 
   // Keyed on staffMember?.id rather than the staffMember object itself:
   // resetStaffPassword/updateStaffAssignment revalidatePath() refetches
@@ -63,16 +66,25 @@ export function StaffAssignmentDialog({
     setPhone(staffMember.phone ?? "");
     setIsActive(staffMember.is_active);
     setResetResult(null);
+    setResetPanelOpen(false);
+    setCustomPassword("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, staffMember?.id]);
 
   if (!staffMember) return null;
 
-  function resetPassword() {
+  function confirmResetPassword() {
+    if (customPassword && customPassword.length < 8) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+
     startResetTransition(async () => {
       try {
-        const result = await resetStaffPassword(staffMember!.id);
+        const result = await resetStaffPassword(staffMember!.id, customPassword.trim() || undefined);
         setResetResult(result);
+        setResetPanelOpen(false);
+        setCustomPassword("");
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Something went wrong");
       }
@@ -129,10 +141,17 @@ export function StaffAssignmentDialog({
               <span>{resetResult.tempPassword}</span>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={copyResetCredentials}>
-                <Copy />
-                Copy credentials
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button variant="outline" size="icon" onClick={copyResetCredentials} />
+                  }
+                >
+                  <Copy />
+                  <span className="sr-only">Copy credentials</span>
+                </TooltipTrigger>
+                <TooltipContent>Copy credentials</TooltipContent>
+              </Tooltip>
               <Button onClick={() => setResetResult(null)}>Done</Button>
             </DialogFooter>
           </>
@@ -197,17 +216,48 @@ export function StaffAssignmentDialog({
                   disabled={isPending}
                 />
               </div>
+
+              {resetPanelOpen && (
+                <div className="flex flex-col gap-1.5 rounded-lg border p-3">
+                  <Label htmlFor="reset-custom-password">New password</Label>
+                  <Input
+                    id="reset-custom-password"
+                    type="password"
+                    autoFocus
+                    value={customPassword}
+                    onChange={(e) => setCustomPassword(e.target.value)}
+                    disabled={resetPending}
+                    placeholder="Leave blank to generate one"
+                  />
+                  <div className="mt-1 flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setResetPanelOpen(false);
+                        setCustomPassword("");
+                      }}
+                      disabled={resetPending}
+                    >
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={confirmResetPassword} disabled={resetPending}>
+                      {resetPending ? "Resetting..." : "Confirm reset"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="sm:justify-between">
               <Button
                 variant="outline"
                 className="gap-1.5"
-                onClick={resetPassword}
-                disabled={resetPending || isPending}
+                onClick={() => setResetPanelOpen(true)}
+                disabled={resetPending || isPending || resetPanelOpen}
               >
                 <KeyRound className="size-4" />
-                {resetPending ? "Resetting..." : "Reset password"}
+                Reset password
               </Button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>

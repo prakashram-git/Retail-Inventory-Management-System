@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { UserRole } from "@/lib/types/domain";
 
 interface InviteStaffDialogProps {
@@ -225,10 +226,13 @@ export function InviteStaffDialog({ open, onOpenChange, stores }: InviteStaffDia
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={copyCredentials}>
-                <Copy />
-                Copy credentials
-              </Button>
+              <Tooltip>
+                <TooltipTrigger render={<Button variant="outline" size="icon" onClick={copyCredentials} />}>
+                  <Copy />
+                  <span className="sr-only">Copy credentials</span>
+                </TooltipTrigger>
+                <TooltipContent>Copy credentials</TooltipContent>
+              </Tooltip>
               <Button onClick={() => onOpenChange(false)}>Done</Button>
             </DialogFooter>
           </>

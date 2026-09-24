@@ -146,12 +146,20 @@ export async function setStaffActive(id: string, isActive: boolean) {
 }
 
 /**
- * Super-admin override for a locked-out staff member: sets a fresh temp
- * password directly via the admin API, bypassing the need for that person's
- * own email/reset flow entirely. Mirrors inviteStaff's one-time-reveal UX.
+ * Super-admin override for a locked-out staff member: sets a fresh password
+ * directly via the admin API, bypassing the need for that person's own
+ * email/reset flow entirely. Mirrors inviteStaff's one-time-reveal UX.
+ *
+ * `customPassword` lets the admin hand off a specific password of their
+ * choosing (e.g. one they'll tell the staff member over the phone); when
+ * omitted, a random one is generated the same way invites are.
  */
-export async function resetStaffPassword(id: string) {
+export async function resetStaffPassword(id: string, customPassword?: string) {
   await requireSuperAdmin();
+
+  if (customPassword && customPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters.");
+  }
 
   const admin = createAdminClient();
   const { data: profile, error: profileError } = await admin
@@ -163,11 +171,11 @@ export async function resetStaffPassword(id: string) {
     throw new Error(profileError?.message ?? "Staff member not found.");
   }
 
-  const tempPassword = generateTempPassword();
+  const newPassword = customPassword || generateTempPassword();
   const { error: updateError } = await admin.auth.admin.updateUserById(id, {
-    password: tempPassword,
+    password: newPassword,
   });
   if (updateError) throw new Error(updateError.message);
 
-  return { email: profile.email as string, tempPassword };
+  return { email: profile.email as string, tempPassword: newPassword };
 }

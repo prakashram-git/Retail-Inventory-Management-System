@@ -137,6 +137,17 @@ export async function requestPasswordResetOtp(
         });
 
   if (error) {
+    // Supabase's built-in mailer (no custom SMTP configured on this
+    // project) caps outbound email at a handful per hour — this is the
+    // single most common failure here and reads as "broken" if surfaced
+    // as a raw API message, so it gets a specific, actionable one instead.
+    if (error.code === "over_email_send_rate_limit") {
+      return {
+        success: false,
+        error:
+          "Too many reset emails sent recently — please wait a while and try again, or ask a super admin to reset your password from Settings → Staff.",
+      };
+    }
     return { success: false, error: error.message };
   }
 
@@ -145,14 +156,18 @@ export async function requestPasswordResetOtp(
 
 /**
  * Verifies the OTP (establishing a real session in the process, same as
- * signing in) and immediately sets the new password on it.
+ * signing in) and immediately sets the new password on it. Returns a
+ * redirectUrl like login() does — verifyOtp leaves the browser with a live
+ * session, so if this only returned a bare success flag the caller would
+ * stay parked on the public /login page with no way to reach the chrome
+ * (sidebar/POS header) that the logout control lives in.
  */
 export async function verifyPasswordResetOtp(
   identifier: string,
   channel: ResetChannel,
   code: string,
   newPassword: string
-): Promise<ActionResult> {
+): Promise<LoginResult> {
   if (newPassword.length < 8) {
     return { success: false, error: "New password must be at least 8 characters." };
   }
@@ -160,12 +175,12 @@ export async function verifyPasswordResetOtp(
   const supabase = await createClient();
   const trimmed = identifier.trim();
 
-  const { error: verifyError } =
+  const { data: verifyData, error: verifyError } =
     channel === "email"
       ? await supabase.auth.verifyOtp({ email: trimmed.toLowerCase(), token: code, type: "email" })
       : await supabase.auth.verifyOtp({ phone: trimmed, token: code, type: "sms" });
 
-  if (verifyError) {
+  if (verifyError || !verifyData.user) {
     return { success: false, error: "That code is incorrect or has expired." };
   }
 
@@ -174,7 +189,56 @@ export async function verifyPasswordResetOtp(
     return { success: false, error: updateError.message };
   }
 
-  return { success: true };
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", verifyData.user.id)
+    .single();
+
+  const redirectUrl = profile?.role === "cashier" ? "/pos" : "/dashboard";
+
+  return { success: true, redirectUrl };
+}
+
+/**
+ * Direct password change from the login screen for someone who still
+ * remembers their current password and just wants to set a new one without
+ * waiting on an OTP. Authenticating via signInWithPassword doubles as proof
+ * of identity here — same trust boundary as changePassword(), just reached
+ * from an unauthenticated starting point instead of an existing session.
+ */
+export async function resetPasswordWithCurrentPassword(
+  email: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<LoginResult> {
+  if (newPassword.length < 8) {
+    return { success: false, error: "New password must be at least 8 characters." };
+  }
+
+  const supabase = await createClient();
+  const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password: currentPassword,
+  });
+  if (signInError || !signInData.user) {
+    return { success: false, error: "Email or current password is incorrect." };
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+  if (updateError) {
+    return { success: false, error: updateError.message };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", signInData.user.id)
+    .single();
+
+  const redirectUrl = profile?.role === "cashier" ? "/pos" : "/dashboard";
+
+  return { success: true, redirectUrl };
 }
 
 /**
