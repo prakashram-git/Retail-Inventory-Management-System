@@ -180,18 +180,21 @@ async function main() {
     ];
     const themeConfig = { accentColor: "#22c55e", glassOpacity: 60, borderRadius: "pill", monoNumbers: false };
 
-    const { error: upsertError } = await admin.from("dashboard_layouts").upsert(
-      {
-        store_id: store.id,
-        user_id: null,
-        layout_config: layoutConfig,
-        theme_config: themeConfig,
-        is_active: true,
-        updated_by: authUser.user.id,
-      },
-      { onConflict: "store_id,user_id" }
-    );
-    record("TC-LAYOUT-03", "Layout saved with reordered/hidden widgets", !upsertError, upsertError?.message ?? "saved");
+    // A plain insert, not upsert: this is a fresh test store with no existing
+    // row, and the unique index on dashboard_layouts is expression-based
+    // (coalesce(store_id,...), coalesce(user_id,...)) to handle NULLs
+    // correctly, which .upsert()'s onConflict column-list form can't target
+    // — the app itself never upserts either; publishDashboardLayout() does a
+    // manual select-then-insert-or-update for the same reason.
+    const { error: insertError } = await admin.from("dashboard_layouts").insert({
+      store_id: store.id,
+      user_id: null,
+      layout_config: layoutConfig,
+      theme_config: themeConfig,
+      is_active: true,
+      updated_by: authUser.user.id,
+    });
+    record("TC-LAYOUT-03", "Layout saved with reordered/hidden widgets", !insertError, insertError?.message ?? "saved");
 
     // TC-LAYOUT-04: a different role (store_manager, same store) sees it immediately.
     const { data: managerAuth, error: managerAuthError } = await admin.auth.admin.createUser({
