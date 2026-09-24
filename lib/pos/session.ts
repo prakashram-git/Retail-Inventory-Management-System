@@ -83,31 +83,29 @@ export interface CloseSessionResult {
   closedAt: string;
 }
 
-/** Closes the drawer, recording the blind count against the cash sales tallied for this shift. */
+/**
+ * Closes the drawer via close_cash_drawer_session(), which recomputes
+ * expected_cash/discrepancy server-side from the real orders ledger rather
+ * than trusting a client-submitted value — RLS no longer permits a cashier
+ * to UPDATE cash_drawer_sessions directly at all (see
+ * supabase/analytics_foundation.sql) precisely so this can't be bypassed by
+ * a direct client call. openingFloat is accepted for signature
+ * compatibility with existing callers but is no longer sent — the RPC reads
+ * the session's own stored opening_float instead.
+ */
 export async function closeSession(
   sessionId: string,
-  openingFloat: number,
+  _openingFloat: number,
   closingCountedCash: number,
   notes: string | null
 ): Promise<CloseSessionResult> {
-  const report = await getSessionSalesReport(sessionId);
-  const expectedCash = openingFloat + report.cashTotal;
-  const discrepancy = closingCountedCash - expectedCash;
-  const closedAt = new Date().toISOString();
-
   const supabase = createClient();
-  const { error } = await supabase
-    .from("cash_drawer_sessions")
-    .update({
-      status: "closed",
-      closing_counted_cash: closingCountedCash,
-      expected_cash: expectedCash,
-      discrepancy,
-      closed_at: closedAt,
-      notes,
-    })
-    .eq("id", sessionId);
+  const { data, error } = await supabase.rpc("close_cash_drawer_session", {
+    p_session_id: sessionId,
+    p_closing_counted_cash: closingCountedCash,
+    p_notes: notes,
+  });
 
   if (error) throw new Error(error.message);
-  return { expectedCash, discrepancy, closedAt };
+  return { expectedCash: data.expected_cash, discrepancy: data.discrepancy, closedAt: data.closed_at };
 }

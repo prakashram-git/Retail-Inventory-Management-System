@@ -75,17 +75,52 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
     description: "Active products with no sale in 45+ days",
     kind: "widget",
   },
+  {
+    id: "widget_executive_digest",
+    label: "Executive Digest",
+    description: "Flash daily / MTD / last-30-days KPIs with PDF and CSV export",
+    kind: "widget",
+  },
+  {
+    id: "widget_cashier_leaderboard",
+    label: "Cashier Leaderboard",
+    description: "SPLH, discount rate, voids/refunds, and a loss-prevention risk score per cashier",
+    kind: "widget",
+  },
+  {
+    id: "widget_dead_stock_aging",
+    label: "Dead Stock Aging",
+    description: "Capital locked in unsold inventory, bucketed by 30-59 / 60-89 / 90+ days",
+    kind: "widget",
+  },
+  {
+    id: "widget_hourly_heatmap",
+    label: "Peak Trading Hours",
+    description: "Order volume by day of week and hour",
+    kind: "widget",
+  },
+  {
+    id: "widget_sell_through",
+    label: "Sell-Through Rate",
+    description: "30-day sell-through vs. the 60-80% healthy retail corridor",
+    kind: "widget",
+  },
 ];
 
 export const DEFAULT_LAYOUT_CONFIG: DashboardWidgetConfig[] = [
-  { id: "metric_gross_revenue", visible: true, x: 0, y: 0, w: 3, h: 2 },
-  { id: "metric_net_profit", visible: true, x: 3, y: 0, w: 3, h: 2 },
-  { id: "metric_aov", visible: true, x: 6, y: 0, w: 3, h: 2 },
-  { id: "metric_shrinkage", visible: true, x: 9, y: 0, w: 3, h: 2 },
-  { id: "chart_revenue_vs_cogs", visible: true, x: 0, y: 2, w: 8, h: 4 },
-  { id: "widget_restock_alerts", visible: true, x: 8, y: 2, w: 4, h: 4 },
-  { id: "widget_recent_orders", visible: true, x: 0, y: 6, w: 7, h: 4 },
-  { id: "widget_dead_stock", visible: true, x: 7, y: 6, w: 5, h: 4 },
+  { id: "widget_executive_digest", visible: true, x: 0, y: 0, w: 12, h: 3 },
+  { id: "metric_gross_revenue", visible: true, x: 0, y: 3, w: 3, h: 2 },
+  { id: "metric_net_profit", visible: true, x: 3, y: 3, w: 3, h: 2 },
+  { id: "metric_aov", visible: true, x: 6, y: 3, w: 3, h: 2 },
+  { id: "metric_shrinkage", visible: true, x: 9, y: 3, w: 3, h: 2 },
+  { id: "chart_revenue_vs_cogs", visible: true, x: 0, y: 5, w: 8, h: 4 },
+  { id: "widget_restock_alerts", visible: true, x: 8, y: 5, w: 4, h: 4 },
+  { id: "widget_cashier_leaderboard", visible: true, x: 0, y: 9, w: 7, h: 4 },
+  { id: "widget_dead_stock_aging", visible: true, x: 7, y: 9, w: 5, h: 4 },
+  { id: "widget_hourly_heatmap", visible: true, x: 0, y: 13, w: 8, h: 4 },
+  { id: "widget_sell_through", visible: true, x: 8, y: 13, w: 4, h: 4 },
+  { id: "widget_recent_orders", visible: true, x: 0, y: 17, w: 7, h: 4 },
+  { id: "widget_dead_stock", visible: true, x: 7, y: 17, w: 5, h: 4 },
 ];
 
 /**

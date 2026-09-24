@@ -9,7 +9,12 @@ export interface SaleLineJoinRow {
   quantity: number;
   refunded_quantity: number;
   unit_price: number;
-  product: { id: string; name: string; sku: string; category_id: string | null; cost_price: number } | null;
+  /** Snapshotted at sale time by process_pos_checkout — the historically
+   * accurate cost, unlike product.cost_price, which is today's live cost
+   * and would retroactively distort past orders' margin if a supplier price
+   * changed since. */
+  unit_cost: number;
+  product: { id: string; name: string; sku: string; category_id: string | null } | null;
   order: {
     created_at: string;
     invoice_number: string;
@@ -30,7 +35,7 @@ export function mapSaleLineRows(rows: SaleLineJoinRow[]): ReportsSaleLine[] {
     quantity: row.quantity,
     refunded_quantity: row.refunded_quantity,
     unit_price: row.unit_price,
-    cost_price: row.product?.cost_price ?? 0,
+    cost_price: row.unit_cost,
     payment_method: row.order.payment_method,
     cashier_name: row.order.cashier?.full_name ?? row.order.cashier?.email ?? "Unknown cashier",
   }));

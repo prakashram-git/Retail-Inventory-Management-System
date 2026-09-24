@@ -73,6 +73,13 @@ export function localDateKey(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone }).format(date);
 }
 
+/** The 0 (Sunday) - 6 (Saturday) weekday this UTC instant falls on in `timeZone`. */
+export function localDayOfWeek(date: Date, timeZone: string): number {
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(date);
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return days.indexOf(weekday);
+}
+
 export function getRangeBounds(
   preset: ReportRangePreset,
   timeZone: string,

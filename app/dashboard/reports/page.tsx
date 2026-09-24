@@ -25,7 +25,7 @@ const VALID_PRESETS = new Set(["today", "7d", "30d", "ytd", "custom"]);
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const SALE_LINE_COLUMNS =
-  "order_id, quantity, refunded_quantity, unit_price, product:products(id, name, sku, category_id, cost_price), order:orders!inner(created_at, invoice_number, status, store_id, payment_method, cashier:profiles(full_name, email))";
+  "order_id, quantity, refunded_quantity, unit_price, unit_cost, product:products(id, name, sku, category_id), order:orders!inner(created_at, invoice_number, status, store_id, payment_method, cashier:profiles(full_name, email))";
 
 interface ReportsPageProps {
   searchParams: Promise<{ range?: string; from?: string; to?: string }>;

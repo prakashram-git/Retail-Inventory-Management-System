@@ -32,6 +32,11 @@ import { LowStockCard } from "./LowStockCard";
 import { TopProductsCard } from "./TopProductsCard";
 import { CategoryOverviewCard } from "./CategoryOverviewCard";
 import { DeadStockCard } from "./DeadStockCard";
+import { ExecutiveDigest } from "@/components/dashboard/analytics/ExecutiveDigest";
+import { CashierScorecard } from "@/components/dashboard/analytics/CashierScorecard";
+import { DeadStockAgingCard } from "@/components/dashboard/analytics/DeadStockAgingCard";
+import { HourlySalesHeatmap } from "@/components/dashboard/analytics/HourlySalesHeatmap";
+import { SellThroughGauge } from "@/components/dashboard/analytics/SellThroughGauge";
 
 interface HomeDashboardProps {
   categories: Category[];
@@ -166,6 +171,11 @@ export function HomeDashboard({
       <RecentOrdersCard orders={recentOrders} className={widgetClassName} style={widgetStyle} />
     ),
     widget_dead_stock: <DeadStockCard rows={deadStock} className={widgetClassName} style={widgetStyle} />,
+    widget_executive_digest: <ExecutiveDigest className={widgetClassName} style={widgetStyle} />,
+    widget_cashier_leaderboard: <CashierScorecard className={widgetClassName} style={widgetStyle} />,
+    widget_dead_stock_aging: <DeadStockAgingCard className={widgetClassName} style={widgetStyle} />,
+    widget_hourly_heatmap: <HourlySalesHeatmap className={widgetClassName} style={widgetStyle} />,
+    widget_sell_through: <SellThroughGauge className={widgetClassName} style={widgetStyle} />,
   };
 
   const visibleWidgets = layoutConfig

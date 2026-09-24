@@ -72,7 +72,7 @@ export default async function DashboardPage() {
     supabase
       .from("order_items")
       .select(
-        "order_id, quantity, refunded_quantity, unit_price, product:products(id, name, sku, category_id, cost_price), order:orders!inner(created_at, invoice_number, status, store_id, payment_method, cashier:profiles(full_name, email))"
+        "order_id, quantity, refunded_quantity, unit_price, unit_cost, product:products(id, name, sku, category_id), order:orders!inner(created_at, invoice_number, status, store_id, payment_method, cashier:profiles(full_name, email))"
       )
       .eq("order.store_id", storeId)
       .neq("order.status", "voided")

@@ -9,7 +9,8 @@
     "lint": "eslint",
     "backup:cli": "NODE_OPTIONS=--conditions=react-server tsx scripts/backup-cli.ts",
     "backup:test": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-backup-engine.ts",
-    "test:layout-role": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-layout-role.ts"
+    "test:layout-role": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-layout-role.ts",
+    "test:analytics": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-analytics-suite.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -44,10 +45,12 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
+    "pg": "^8.23.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
