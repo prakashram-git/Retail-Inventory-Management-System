@@ -11,8 +11,9 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { logout } from "@/lib/actions/auth";
-import { broadcastSessionTerminated, listenForSessionTermination } from "@/lib/auth/authChannel";
-import { db } from "@/lib/offline/db";
+import { broadcastForceLogout, listenForForceLogout } from "@/lib/auth/authChannel";
+import { getPendingSyncCount } from "@/lib/offline/sync";
+import { useSync } from "@/components/providers/SyncProvider";
 import { getOpenSession } from "@/lib/pos/session";
 import { clearParkedCart, parkCart } from "@/lib/pos/parkedCart";
 import { createClient } from "@/lib/supabase/client";
@@ -35,6 +36,8 @@ export interface PosSnapshot {
   cart: CartLine[];
   drawerOpen: boolean;
   unitNumber: string | null;
+  /** Cart grand total (tax/discount applied), for the sign-out warning. */
+  cartTotal: number;
 }
 
 interface SessionGuardValue {
@@ -60,6 +63,7 @@ export function useSessionGuard() {
 
 export function SessionProvider({ user, children }: { user: SessionUser; children: React.ReactNode }) {
   const { storeId, storeName } = useStore();
+  const { triggerSync } = useSync();
   const [locked, setLocked] = useState(false);
   const [pos, setPos] = useState<PosSnapshot | null>(null);
   const [checks, setChecks] = useState<SignOutChecks | null>(null);
@@ -83,9 +87,8 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
       await createClient().auth.signOut({ scope: "local" }).catch(() => {});
       document.cookie = `${ACTIVE_STORE_COOKIE}=; Max-Age=0; path=/`;
     }
-    broadcastSessionTerminated();
+    broadcastForceLogout();
     // Full page load: drops all in-memory React state and Dexie listeners.
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = redirectUrl;
   }, []);
 
@@ -94,11 +97,7 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
       returnFocusRef.current = returnFocusTo ?? (document.activeElement as HTMLElement | null);
       const snapshot = posRef.current;
 
-      const pendingCount = await db.offline_orders_queue
-        .where("sync_status")
-        .anyOf("pending", "failed")
-        .count()
-        .catch(() => 0);
+      const pendingCount = await getPendingSyncCount().catch(() => 0);
       // Off the POS screen the drawer state needs a network call; never let a
       // dead connection stall the dialog — skip it offline, cap it at 2s online.
       const drawerOpen =
@@ -112,6 +111,7 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
 
       setChecks({
         cartItemCount: snapshot?.cart.reduce((sum, l) => sum + l.quantity, 0) ?? 0,
+        cartTotal: snapshot?.cartTotal ?? 0,
         canPark: !!snapshot && snapshot.cart.length > 0,
         drawerOpen,
         pendingOfflineCount: pendingCount,
@@ -120,6 +120,18 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
     },
     [storeId, user.id]
   );
+
+  const syncNow = useCallback(async () => {
+    if (!navigator.onLine) {
+      toast.error("You're offline — reconnect to sync.");
+      return;
+    }
+    await triggerSync();
+    const remaining = await getPendingSyncCount().catch(() => 0);
+    setChecks((prev) => (prev ? { ...prev, pendingOfflineCount: remaining } : prev));
+    if (remaining === 0) toast.success("All offline transactions synced");
+    else toast.error(`${remaining} transaction(s) still pending`);
+  }, [triggerSync]);
 
   const lock = useCallback(() => setLocked(true), []);
   const unlock = useCallback(() => {
@@ -144,7 +156,7 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
   }, [storeId, user.id]);
 
   useEffect(() => {
-    const unsubscribe = listenForSessionTermination(() => {
+    const unsubscribe = listenForForceLogout(() => {
       // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.href = "/login";
     });
@@ -195,10 +207,11 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
         onOpenChange={setDialogOpen}
         checks={checks}
         user={user}
-        storeName={storeName}
+        storeName={pos?.unitNumber ? `${storeName} · Unit ${pos.unitNumber}` : storeName}
         returnFocusRef={returnFocusRef}
         onConfirm={teardown}
         onPark={parkAndLock}
+        onSyncNow={syncNow}
       />
       {locked && <LockOverlay onUnlock={unlock} onSignOut={teardown} />}
     </SessionGuardContext.Provider>

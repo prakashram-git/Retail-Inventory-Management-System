@@ -47,7 +47,7 @@ export function SettingsTabs({ role }: { role: UserRole }) {
   const tabs = SETTINGS_TABS.filter((tab) => (tab.roles as readonly UserRole[]).includes(role));
 
   return (
-    <div className="flex w-fit gap-1 rounded-lg bg-muted p-1">
+    <div className="flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-muted p-1">
       {tabs.map((tab) => {
         const active = pathname.startsWith(tab.href);
         return (

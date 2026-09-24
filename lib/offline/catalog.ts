@@ -16,7 +16,8 @@ export async function syncStoreCatalog(storeId: string): Promise<void> {
         .select(
           "id, store_id, sku, barcode, name, retail_price, current_stock, category_id, updated_at"
         )
-        .eq("store_id", storeId),
+        .eq("store_id", storeId)
+        .eq("has_variants", false),
       supabase
         .from("categories")
         .select("id, store_id, name, slug")

@@ -41,6 +41,8 @@ export default async function InventoryPage() {
         "*, category:categories(id, name, slug, parent_id, is_tax_exempt)"
       )
       .eq("store_id", storeId)
+      // Variant parents are non-sellable containers; the variants themselves are listed.
+      .eq("has_variants", false)
       .order("updated_at", { ascending: false }),
     supabase
       .from("orders")

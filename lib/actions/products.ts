@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireStoreContext } from "./shared";
 import { productFormSchema, type ProductFormInput } from "@/lib/products/schema";
+import { variantProductSchema, type VariantProductInput } from "@/lib/products/variants";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const productInputSchema = productFormSchema;
@@ -19,7 +20,9 @@ async function assertSkuIsFree(
     .from("products")
     .select("id")
     .eq("store_id", storeId)
-    .eq("sku", sku)
+    // Case-insensitive, matching the uq_store_sku_case_insensitive index. ilike treats
+    // % and _ as wildcards, so escape them to keep this an exact (case-folded) match.
+    .ilike("sku", sku.replace(/[\\%_]/g, "\\$&"))
     .limit(1);
   if (excludeId) query = query.neq("id", excludeId);
 
@@ -155,4 +158,127 @@ export async function deleteProduct(id: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard/inventory");
+}
+
+
+/** Next semantic SKU for the active store, e.g. ALT-01-WATCH-01001 (atomic, see generate_next_store_sku). */
+export async function generateProductSku(prefix?: string): Promise<string> {
+  const { supabase, storeId } = await requireStoreContext();
+  const { data, error } = await supabase.rpc("generate_next_store_sku", {
+    p_store_id: storeId,
+    p_prefix: prefix?.trim() || "SKU",
+  });
+  if (error) throw new Error(error.message);
+  return data as string;
+}
+
+/** Live duplicate check for the manual-entry mode; the unique indexes remain the real guarantee. */
+export async function checkProductIdentifiers(input: {
+  sku?: string;
+  barcode?: string | null;
+  excludeId?: string;
+}): Promise<{ skuTaken: boolean; barcodeTaken: boolean }> {
+  const { supabase, storeId } = await requireStoreContext();
+  const [skuTaken, barcodeTaken] = await Promise.all([
+    input.sku?.trim()
+      ? assertSkuIsFree(supabase, storeId, input.sku.trim(), input.excludeId).then(() => false, () => true)
+      : false,
+    input.barcode?.trim()
+      ? assertBarcodeIsFree(supabase, storeId, input.barcode.trim(), input.excludeId).then(() => false, () => true)
+      : false,
+  ]);
+  return { skuTaken, barcodeTaken };
+}
+
+/**
+ * Creates a variant parent (a non-sellable container carrying the base SKU) plus one child
+ * product per variant, each with its own SKU, barcode, prices and opening stock. Supabase's
+ * REST client has no multi-statement transaction, so a failure part-way removes what this call
+ * created; the case-insensitive SKU and barcode indexes are the guarantee against duplicates.
+ */
+export async function createProductWithVariants(input: VariantProductInput) {
+  const parsed = variantProductSchema.parse(input);
+  const { supabase, storeId } = await requireStoreContext();
+  const { data: userResult } = await supabase.auth.getUser();
+
+  await assertSkuIsFree(supabase, storeId, parsed.sku);
+  for (const v of parsed.variants) {
+    await assertSkuIsFree(supabase, storeId, v.sku);
+    await assertBarcodeIsFree(supabase, storeId, v.barcode);
+  }
+
+  const { data: parent, error: parentError } = await supabase
+    .from("products")
+    .insert({
+      store_id: storeId,
+      category_id: parsed.category_id,
+      sku: parsed.sku,
+      barcode: null,
+      name: parsed.name,
+      description: parsed.description,
+      tags: parsed.tags,
+      cost_price: parsed.cost_price,
+      retail_price: parsed.retail_price,
+      current_stock: 0,
+      min_threshold: parsed.min_threshold,
+      image_url: parsed.image_url,
+      is_active: parsed.is_active,
+      has_variants: true,
+    })
+    .select("id")
+    .single();
+  if (parentError) throw new Error(friendlyInsertError(parentError));
+
+  const { data: children, error: childError } = await supabase
+    .from("products")
+    .insert(
+      parsed.variants.map((v) => ({
+        store_id: storeId,
+        category_id: parsed.category_id,
+        sku: v.sku,
+        barcode: v.barcode,
+        name: `${parsed.name} — ${Object.values(v.variant_attributes).join(" / ")}`,
+        description: parsed.description,
+        tags: parsed.tags,
+        cost_price: v.cost_price,
+        retail_price: v.retail_price,
+        current_stock: v.current_stock,
+        min_threshold: parsed.min_threshold,
+        image_url: parsed.image_url,
+        is_active: parsed.is_active,
+        parent_id: parent.id,
+        variant_attributes: v.variant_attributes,
+      }))
+    )
+    .select("id, sku, current_stock");
+
+  if (childError || !children) {
+    await supabase.from("products").delete().eq("id", parent.id);
+    throw new Error(friendlyInsertError(childError));
+  }
+
+  const logs = children
+    .filter((c) => c.current_stock > 0)
+    .map((c) => ({
+      store_id: storeId,
+      product_id: c.id,
+      change_type: "restock",
+      quantity: c.current_stock,
+      previous_stock: 0,
+      new_stock: c.current_stock,
+      notes: "Initial stock on variant creation",
+      created_by: userResult.user?.id,
+    }));
+  if (logs.length > 0) {
+    const { error: logError } = await supabase.from("inventory_logs").insert(logs);
+    if (logError) throw new Error(logError.message);
+  }
+
+  revalidatePath("/dashboard/inventory");
+  return { parentId: parent.id, variantCount: children.length };
+}
+
+function friendlyInsertError(error: { code?: string; message: string } | null): string {
+  if (error?.code === "23505") return "One of the SKUs or barcodes is already used by another product in this store.";
+  return error?.message ?? "Could not create the variants";
 }

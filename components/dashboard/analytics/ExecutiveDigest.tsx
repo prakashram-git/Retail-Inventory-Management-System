@@ -29,13 +29,13 @@ function DeltaTag({ pct, invert, label }: { pct: number; invert?: boolean; label
   return (
     <span
       className={cn(
-        "flex items-center gap-0.5 text-xs font-medium",
+        "flex items-center gap-0.5 text-[10px] font-medium",
         isFlat && "text-muted-foreground",
         isGood === true && "text-emerald-600 dark:text-emerald-400",
         isGood === false && "text-destructive"
       )}
     >
-      {!isFlat && (isUp ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />)}
+      {!isFlat && (isUp ? <ArrowUp className="size-2.5" /> : <ArrowDown className="size-2.5" />)}
       {isFlat ? "Flat" : `${Math.abs(pct).toFixed(1)}%`}
       {label && <span className="font-normal text-muted-foreground">{label}</span>}
     </span>
@@ -51,10 +51,10 @@ function KpiCard({ spec, formatPrice }: { spec: KpiSpec; formatPrice: (n: number
         : spec.value.toLocaleString();
 
   return (
-    <Card size="sm">
-      <CardContent className="flex flex-col gap-1">
-        <span className="text-xs text-muted-foreground">{spec.label}</span>
-        <span className="font-mono text-lg font-semibold">{displayValue}</span>
+    <Card size="sm" className="data-[size=sm]:[--card-spacing:--spacing(1.5)]">
+      <CardContent className="flex flex-col gap-0 leading-tight">
+        <span className="truncate text-[10px] text-muted-foreground" title={spec.label}>{spec.label}</span>
+        <span className="font-mono text-sm font-semibold">{displayValue}</span>
         {spec.deltaPct != null && <DeltaTag pct={spec.deltaPct} invert={spec.invertDelta} label={spec.deltaLabel} />}
       </CardContent>
     </Card>
@@ -242,7 +242,7 @@ export function ExecutiveDigest({ className, style }: { className?: string; styl
         )}
 
         {!isPending && !loadError && daily && segment !== "mtd" && (
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
             <KpiCard
               spec={{
                 label: "Gross sales",

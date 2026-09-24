@@ -5,10 +5,6 @@ import Link from "next/link";
 import {
   DollarSign,
   TrendingUp,
-  Plus,
-  FolderPlus,
-  ShoppingCart,
-  BarChart3,
   Wallet,
   PackageMinus,
 } from "lucide-react";
@@ -27,6 +23,7 @@ import type { ReportsSaleLine, ReportsSaleTouch, StockMovementRow } from "@/lib/
 import type { Category, Product } from "@/lib/types/domain";
 import type { OrderRow } from "@/lib/orders/types";
 import type { DashboardWidgetConfig, DashboardThemeConfig, BorderRadiusStyle } from "@/lib/dashboard/layout-types";
+import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { RecentOrdersCard } from "./RecentOrdersCard";
 import { LowStockCard } from "./LowStockCard";
 import { TopProductsCard } from "./TopProductsCard";
@@ -55,14 +52,8 @@ interface HomeDashboardProps {
   stockMovements: StockMovementRow[];
   layoutConfig: DashboardWidgetConfig[];
   themeConfig: DashboardThemeConfig;
+  canManageCatalog: boolean;
 }
-
-const QUICK_ACTIONS = [
-  { href: "/dashboard/inventory", label: "New product", icon: Plus },
-  { href: "/dashboard/categories", label: "New category", icon: FolderPlus },
-  { href: "/pos", label: "Open POS", icon: ShoppingCart },
-  { href: "/dashboard/reports", label: "View reports", icon: BarChart3 },
-];
 
 const RADIUS_MAP: Record<BorderRadiusStyle, string> = {
   sharp: "4px",
@@ -82,6 +73,7 @@ export function HomeDashboard({
   stockMovements,
   layoutConfig,
   themeConfig,
+  canManageCatalog,
 }: HomeDashboardProps) {
   const { formatPrice } = useStore();
 
@@ -192,22 +184,7 @@ export function HomeDashboard({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {QUICK_ACTIONS.map((action) => (
-          <Button
-            key={action.href}
-            variant="outline"
-            className="h-auto flex-col gap-2 py-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm"
-            nativeButton={false}
-            render={<Link href={action.href} />}
-          >
-            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <action.icon className="size-4" />
-            </span>
-            {action.label}
-          </Button>
-        ))}
-      </div>
+      <QuickActionsBar categories={categories} canManageCatalog={canManageCatalog} />
 
       <div
         className="grid grid-cols-12 gap-4"

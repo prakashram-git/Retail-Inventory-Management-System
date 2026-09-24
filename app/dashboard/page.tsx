@@ -68,7 +68,9 @@ export default async function DashboardPage() {
     supabase
       .from("products")
       .select("id, store_id, category_id, sku, barcode, name, description, tags, cost_price, retail_price, current_stock, min_threshold, image_url, is_active, updated_at")
-      .eq("store_id", storeId),
+      .eq("store_id", storeId)
+      // Variant parents are containers with no stock or sales of their own.
+      .eq("has_variants", false),
     supabase
       .from("order_items")
       .select(
@@ -186,6 +188,7 @@ export default async function DashboardPage() {
         stockMovements={stockMovements}
         layoutConfig={resolvedLayout.layoutConfig}
         themeConfig={resolvedLayout.themeConfig}
+        canManageCatalog={profile?.role !== "ui_designer"}
       />
     </div>
   );

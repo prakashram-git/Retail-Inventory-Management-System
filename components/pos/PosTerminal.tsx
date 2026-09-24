@@ -114,9 +114,10 @@ export function PosTerminal({
   // Expose cart/register state to the session guard so the sign-out dialog can
   // warn about it (and park the cart), and clear it when this view unmounts.
   const registerOpenForGuard = session !== "loading" && session !== null;
+  const cartTotalForGuard = calculateCartTotals(cart, taxRatePercent, taxModel, 0).total;
   useEffect(() => {
-    registerPos({ cart, drawerOpen: registerOpenForGuard, unitNumber });
-  }, [registerPos, cart, registerOpenForGuard, unitNumber]);
+    registerPos({ cart, drawerOpen: registerOpenForGuard, unitNumber, cartTotal: cartTotalForGuard });
+  }, [registerPos, cart, registerOpenForGuard, unitNumber, cartTotalForGuard]);
   useEffect(() => () => registerPos(null), [registerPos]);
 
   // A cart parked before sign-out / lock comes back on the next visit.

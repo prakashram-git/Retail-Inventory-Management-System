@@ -4,9 +4,19 @@ import { useEffect, useRef, useState, useTransition, type KeyboardEvent } from "
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { X, ImagePlus, Loader2 } from "lucide-react";
+import { X, ImagePlus, Loader2, Wand2, Keyboard, ScanBarcode, Camera, CheckCircle2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { createProduct, updateProduct } from "@/lib/actions/products";
+import {
+  checkProductIdentifiers,
+  createProduct,
+  createProductWithVariants,
+  generateProductSku,
+  updateProduct,
+} from "@/lib/actions/products";
+import { variantSku, type VariantRow } from "@/lib/products/variants";
+import { validateGs1Barcode } from "@/lib/utils/gs1Validator";
+import { useScannerBurst } from "@/lib/pos/use-scanner-burst";
+import { cn } from "@/lib/utils";
 import { productFormSchema, type ProductFormInput } from "@/lib/products/schema";
 import { useStore } from "@/components/providers/StoreProvider";
 import { computeMarginPercent } from "@/lib/utils/inventory";
@@ -25,9 +35,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { CategorySelect } from "./CategorySelect";
+import { VariantMatrixBuilder } from "./VariantMatrixBuilder";
+import { CameraBarcodeScanner } from "./CameraBarcodeScanner";
 import type { Category, ProductWithCategory } from "@/lib/types/domain";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+type SkuMode = "auto" | "manual" | "scan";
+const SKU_MODES: { value: SkuMode; label: string; icon: typeof Wand2 }[] = [
+  { value: "auto", label: "Automated Taxonomy Mask", icon: Wand2 },
+  { value: "manual", label: "Manual Semantic Entry", icon: Keyboard },
+  { value: "scan", label: "Scan Barcode", icon: ScanBarcode },
+];
 
 interface ProductSheetProps {
   open: boolean;
@@ -59,12 +78,20 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
   const [tagInput, setTagInput] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [skuMode, setSkuMode] = useState<SkuMode>("auto");
+  const [skuPrefix, setSkuPrefix] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [idStatus, setIdStatus] = useState<{ skuTaken: boolean; barcodeTaken: boolean } | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [hasVariants, setHasVariants] = useState(false);
+  const [variantRows, setVariantRows] = useState<VariantRow[]>([]);
 
   const {
     register,
     control,
     handleSubmit,
     reset,
+    getValues,
     watch,
     setValue,
     formState: { errors },
@@ -80,7 +107,44 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
     // props individually.
     reset(defaultsFor(product));
     setTagInput("");
+    setSkuMode("auto");
+    setSkuPrefix("");
+    setIdStatus(null);
+    setHasVariants(false);
+    setVariantRows([]);
   }, [open, product, reset]);
+
+  const skuValue = watch("sku") ?? "";
+  const barcodeValue = watch("barcode") ?? "";
+
+  // Debounced duplicate check (manual entry, and edits). The unique indexes still decide at save time.
+  const checkedSku = skuMode === "manual" || product ? skuValue.trim() : "";
+  const checkedBarcode = String(barcodeValue).trim();
+  useEffect(() => {
+    if (!open) return;
+    const sku = checkedSku && checkedSku.toUpperCase() !== (product?.sku ?? "").toUpperCase() ? checkedSku : "";
+    const barcode = checkedBarcode && checkedBarcode !== (product?.barcode ?? "") ? checkedBarcode : "";
+    if (!sku && !barcode) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      checkProductIdentifiers({ sku, barcode, excludeId: product?.id })
+        .then((result) => !cancelled && setIdStatus(result))
+        .catch(() => !cancelled && setIdStatus(null));
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [open, checkedSku, checkedBarcode, product]);
+
+  // Hardware scanner: capture the burst instead of letting it type into whichever field has focus.
+  function applyScan(code: string) {
+    setValue("barcode", code, { shouldDirty: true, shouldValidate: true });
+    const gs1 = validateGs1Barcode(code);
+    if (gs1.isValid) toast.success(`Scanned ${gs1.type} ${code}`);
+    else toast.error(`Scanned ${code} — invalid ${gs1.type} check digit`);
+  }
+  useScannerBurst(applyScan, open && !product && skuMode === "scan");
 
   const costPrice = watch("cost_price");
   const retailPrice = watch("retail_price");
@@ -141,9 +205,47 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
     }
   }
 
+  async function onFormSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // Automated / scan modes: the SKU number is only drawn from the counter when actually saving,
+    // so cancelling the sheet never burns a sequence number.
+    if (!product && skuMode !== "manual" && !getValues("sku")?.trim()) {
+      setIsGenerating(true);
+      try {
+        setValue("sku", await generateProductSku(skuPrefix), { shouldValidate: true });
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not generate a SKU");
+        return;
+      } finally {
+        setIsGenerating(false);
+      }
+    }
+    return handleSubmit(submit)(e);
+  }
+
   function submit(values: ProductFormInput) {
     startTransition(async () => {
       try {
+        if (!product && hasVariants) {
+          if (variantRows.length === 0) throw new Error("Add at least one variant option value.");
+          const { current_stock: _stock, barcode: _barcode, ...base } = values;
+          void _stock;
+          void _barcode;
+          const result = await createProductWithVariants({
+            ...base,
+            variants: variantRows.map((r) => ({
+              sku: variantSku(values.sku, r),
+              barcode: r.barcode || null,
+              retail_price: Number(r.retail_price) || 0,
+              cost_price: Number(r.cost_price) || 0,
+              current_stock: Number(r.current_stock) || 0,
+              variant_attributes: r.attributes,
+            })),
+          });
+          toast.success(`Created ${result.variantCount} variants`);
+          onOpenChange(false);
+          return;
+        }
         if (product) {
           await updateProduct(product.id, values);
           toast.success("Product updated");
@@ -158,7 +260,8 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
     });
   }
 
-  const busy = isPending || isUploading;
+  const busy = isPending || isUploading || isGenerating;
+  const skuField = register("sku");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -174,7 +277,7 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
 
         <form
           id="product-form"
-          onSubmit={handleSubmit(submit)}
+          onSubmit={onFormSubmit}
           className="flex flex-1 flex-col gap-4 px-4"
         >
           <div className="flex items-center gap-3">
@@ -236,28 +339,134 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-sku">SKU</Label>
-              <Input
-                id="product-sku"
-                {...register("sku")}
-                disabled={busy}
-                className="font-mono"
-                aria-invalid={!!errors.sku}
-              />
-              {errors.sku && <p className="text-xs text-destructive">{errors.sku.message}</p>}
+            <div className="col-span-2 flex flex-col gap-2">
+              {!product && (
+                <div role="tablist" aria-label="SKU generation mode" className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1">
+                  {SKU_MODES.map((mode) => (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      role="tab"
+                      aria-selected={skuMode === mode.value}
+                      data-testid={`sku-mode-${mode.value}`}
+                      onClick={() => {
+                        setSkuMode(mode.value);
+                        setIdStatus(null);
+                      }}
+                      disabled={busy}
+                      className={cn(
+                        "flex items-center justify-center gap-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium leading-tight transition-colors",
+                        skuMode === mode.value ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <mode.icon className="size-3.5 shrink-0" />
+                      <span>{mode.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="product-sku">SKU</Label>
+                <div className="flex gap-2">
+                  {!product && skuMode !== "manual" && (
+                    <Input
+                      aria-label="SKU prefix"
+                      value={skuPrefix}
+                      onChange={(e) => setSkuPrefix(e.target.value.toUpperCase())}
+                      disabled={busy}
+                      maxLength={10}
+                      placeholder="Prefix"
+                      className="w-24 font-mono"
+                    />
+                  )}
+                  <Input
+                    id="product-sku"
+                    {...skuField}
+                    onChange={(e) => {
+                      if (!product && skuMode === "manual") e.target.value = e.target.value.toUpperCase();
+                      setIdStatus(null);
+                      skuField.onChange(e);
+                    }}
+                    disabled={busy}
+                    className="flex-1 font-mono"
+                    aria-invalid={!!errors.sku || !!idStatus?.skuTaken}
+                    placeholder={!product && skuMode !== "manual" ? "Assigned automatically on save" : "e.g. WATCH-DIVER-01"}
+                  />
+                  {!product && skuMode !== "manual" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={busy}
+                      data-testid="generate-sku-btn"
+                      onClick={async () => {
+                        setIsGenerating(true);
+                        try {
+                          setValue("sku", await generateProductSku(skuPrefix), { shouldValidate: true });
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : "Could not generate a SKU");
+                        } finally {
+                          setIsGenerating(false);
+                        }
+                      }}
+                    >
+                      {isGenerating ? <Loader2 className="animate-spin" /> : <Wand2 />}
+                      Generate
+                    </Button>
+                  )}
+                </div>
+                {errors.sku && <p className="text-xs text-destructive">{errors.sku.message}</p>}
+                {idStatus?.skuTaken && (
+                  <p className="flex items-center gap-1 text-xs text-destructive" data-testid="sku-taken">
+                    <AlertCircle className="size-3" /> This SKU is already used in this store.
+                  </p>
+                )}
+                {(skuMode === "manual" || product) && checkedSku && idStatus && !idStatus.skuTaken && checkedSku.toUpperCase() !== (product?.sku ?? "").toUpperCase() && (
+                  <p className="flex items-center gap-1 text-xs text-emerald-600" data-testid="sku-free">
+                    <CheckCircle2 className="size-3" /> Available
+                  </p>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-barcode">Barcode</Label>
-              <Input
-                id="product-barcode"
-                {...register("barcode")}
-                disabled={busy}
-                className="font-mono"
-                placeholder="Optional"
-              />
-            </div>
+            {!(hasVariants && !product) && (
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Label htmlFor="product-barcode">Barcode (manufacturer GTIN)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="product-barcode"
+                    {...register("barcode")}
+                    disabled={busy}
+                    className="flex-1 font-mono"
+                    placeholder={!product && skuMode === "scan" ? "Scan now — or use the camera" : "Optional"}
+                    aria-invalid={!!errors.barcode || !!idStatus?.barcodeTaken}
+                  />
+                  {!product && skuMode === "scan" && (
+                    <Button type="button" variant="outline" onClick={() => setCameraOpen(true)} disabled={busy} data-testid="camera-scan-btn">
+                      <Camera />
+                      Camera
+                    </Button>
+                  )}
+                </div>
+                {!product && skuMode === "scan" && (
+                  <p className="text-xs text-muted-foreground" data-testid="scan-ready">
+                    Ready — point a hardware scanner at the product; it will not type into other fields.
+                  </p>
+                )}
+                {errors.barcode && <p className="text-xs text-destructive">{errors.barcode.message}</p>}
+                {barcodeValue && !errors.barcode && (
+                  <p className={cn("text-xs", validateGs1Barcode(String(barcodeValue)).isValid ? "text-muted-foreground" : "text-destructive")} data-testid="gs1-hint">
+                    {validateGs1Barcode(String(barcodeValue)).type}
+                    {validateGs1Barcode(String(barcodeValue)).isValid ? " · valid" : " · invalid check digit"}
+                  </p>
+                )}
+                {idStatus?.barcodeTaken && (
+                  <p className="flex items-center gap-1 text-xs text-destructive" data-testid="barcode-taken">
+                    <AlertCircle className="size-3" /> This barcode is already used in this store.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -339,7 +548,27 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
             </span>
           </p>
 
+          {!product && (
+            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <div className="flex flex-col">
+                <Label htmlFor="product-has-variants">This product has variants</Label>
+                <p className="text-xs text-muted-foreground">Size, color… each variant gets its own SKU, barcode, price and stock.</p>
+              </div>
+              <Switch id="product-has-variants" checked={hasVariants} onCheckedChange={setHasVariants} disabled={busy} data-testid="has-variants" />
+            </div>
+          )}
+          {!product && hasVariants && (
+            <VariantMatrixBuilder
+              baseSku={skuValue}
+              defaults={{ retail_price: String(retailPrice ?? 0), cost_price: String(costPrice ?? 0) }}
+              rows={variantRows}
+              onRowsChange={setVariantRows}
+              disabled={busy}
+            />
+          )}
+
           <div className="grid grid-cols-2 gap-3">
+            {!(hasVariants && !product) && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="product-stock">Current stock</Label>
               <Input
@@ -352,6 +581,7 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
                 className="font-mono"
               />
             </div>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="product-threshold">Low-stock threshold</Label>
               <Controller
@@ -407,6 +637,8 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
             />
           </div>
         </form>
+
+        <CameraBarcodeScanner open={cameraOpen} onOpenChange={setCameraOpen} onDetect={(code) => { applyScan(code); setCameraOpen(false); }} />
 
         <SheetFooter>
           <Button type="submit" form="product-form" disabled={busy} className="w-full">

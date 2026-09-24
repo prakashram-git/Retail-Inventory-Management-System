@@ -55,6 +55,8 @@ export default async function PosPage() {
         )
         .eq("store_id", resolvedStoreId)
         .eq("is_active", true)
+        // Variant parents are non-sellable containers; their child variants are the SKUs.
+        .eq("has_variants", false)
         .order("name"),
     ]);
 
