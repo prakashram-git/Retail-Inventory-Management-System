@@ -58,7 +58,7 @@ export function RevenueCogsAreaChart({ points }: { points: RevenueCogsPoint[] })
   const grossMarginPercent = totalRevenue > 0 ? ((totalRevenue - totalCogs) / totalRevenue) * 100 : 0;
 
   return (
-    <Card size="sm">
+    <Card size="sm" className="transition-shadow hover:shadow-md">
       <CardHeader>
         <CardTitle>Revenue vs. COGS</CardTitle>
         <CardDescription>

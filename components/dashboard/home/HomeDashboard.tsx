@@ -41,6 +41,8 @@ interface HomeDashboardProps {
     "id" | "invoice_number" | "total" | "status" | "payment_method" | "is_offline_sync" | "created_at" | "cashier"
   >[];
   timezone: string;
+  /** Net units sold per day over the last 30 days, keyed by product id — feeds the reorder suggestion. */
+  velocityByProductId: Record<string, number>;
 }
 
 const QUICK_ACTIONS = [
@@ -57,6 +59,7 @@ export function HomeDashboard({
   weekSalesLines,
   recentOrders,
   timezone,
+  velocityByProductId,
 }: HomeDashboardProps) {
   const { formatPrice } = useStore();
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
@@ -97,11 +100,13 @@ export function HomeDashboard({
           <Button
             key={action.href}
             variant="outline"
-            className="h-auto flex-col gap-1.5 py-3"
+            className="h-auto flex-col gap-2 py-4 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm"
             nativeButton={false}
             render={<Link href={action.href} />}
           >
-            <action.icon className="size-4" />
+            <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <action.icon className="size-4" />
+            </span>
             {action.label}
           </Button>
         ))}
@@ -109,9 +114,21 @@ export function HomeDashboard({
 
       <InventoryKpiGrid
         items={[
-          { label: "Today's revenue", value: formatPrice(todayKpis.grossRevenue), icon: DollarSign, mono: true },
-          { label: "Today's orders", value: String(todayKpis.orderCount), icon: ReceiptIcon },
-          { label: "Today's profit", value: formatPrice(todayKpis.netProfit), icon: TrendingUp, mono: true },
+          {
+            label: "Today's revenue",
+            value: formatPrice(todayKpis.grossRevenue),
+            icon: DollarSign,
+            mono: true,
+            tone: "success",
+          },
+          { label: "Today's orders", value: String(todayKpis.orderCount), icon: ReceiptIcon, tone: "info" },
+          {
+            label: "Today's profit",
+            value: formatPrice(todayKpis.netProfit),
+            icon: TrendingUp,
+            mono: true,
+            tone: "accent",
+          },
           {
             label: "Stock alerts",
             value: String(stockAlerts.low + stockAlerts.out),
@@ -125,7 +142,7 @@ export function HomeDashboard({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <RecentOrdersCard orders={recentOrders} />
-        <LowStockCard products={products} categories={categories} />
+        <LowStockCard products={products} categories={categories} velocityByProductId={velocityByProductId} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

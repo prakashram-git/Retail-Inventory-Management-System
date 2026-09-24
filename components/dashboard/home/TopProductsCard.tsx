@@ -10,7 +10,7 @@ export function TopProductsCard({ products }: { products: TopProductRow[] }) {
   const maxRevenue = Math.max(1, ...products.map((p) => p.revenue));
 
   return (
-    <Card size="sm" className="flex flex-col">
+    <Card size="sm" className="flex flex-col transition-shadow hover:shadow-md">
       <CardHeader>
         <CardTitle>Top sellers this week</CardTitle>
         <CardDescription>By net revenue, last 7 days</CardDescription>

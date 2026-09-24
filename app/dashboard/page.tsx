@@ -5,6 +5,7 @@ import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
 import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
 import { getRangeBounds } from "@/lib/reports/timezone";
 import { mapSaleLineRows, type SaleLineJoinRow } from "@/lib/reports/shape";
+import { buildSalesVelocity } from "@/lib/reports/aggregate";
 import { HomeDashboard } from "@/components/dashboard/home/HomeDashboard";
 import type { OrderRow } from "@/lib/orders/types";
 import type { Category, Product } from "@/lib/types/domain";
@@ -43,12 +44,14 @@ export default async function DashboardPage() {
 
   const { from: todayFrom } = getRangeBounds("today", timezone);
   const { from: weekFrom, to: weekTo } = getRangeBounds("7d", timezone);
+  const { from: thirtyFrom, to: thirtyTo } = getRangeBounds("30d", timezone);
 
   const [
     { data: categoryRows },
     { data: productRows },
     { data: weekSaleLineRows },
     { data: recentOrderRows },
+    { data: thirtyDayItemRows },
   ] = await Promise.all([
     supabase
       .from("categories")
@@ -73,6 +76,15 @@ export default async function DashboardPage() {
       .eq("store_id", storeId)
       .order("created_at", { ascending: false })
       .limit(6),
+    // Lightweight — no product/cashier joins — this only feeds the reorder
+    // suggestion's units-per-day calculation, not display.
+    supabase
+      .from("order_items")
+      .select("product_id, quantity, refunded_quantity, order:orders!inner(created_at, status, store_id)")
+      .eq("order.store_id", storeId)
+      .neq("order.status", "voided")
+      .gte("order.created_at", thirtyFrom.toISOString())
+      .lte("order.created_at", thirtyTo.toISOString()),
   ]);
 
   const categories = (categoryRows ?? []) as Category[];
@@ -83,6 +95,17 @@ export default async function DashboardPage() {
     OrderRow,
     "id" | "invoice_number" | "total" | "status" | "payment_method" | "is_offline_sync" | "created_at" | "cashier"
   >[];
+
+  const thirtyDayWindowDays = Math.max(
+    1,
+    Math.round((thirtyTo.getTime() - thirtyFrom.getTime()) / 86_400_000)
+  );
+  const velocityByProductId = Object.fromEntries(
+    buildSalesVelocity(
+      (thirtyDayItemRows ?? []) as { product_id: string; quantity: number; refunded_quantity: number }[],
+      thirtyDayWindowDays
+    )
+  );
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
@@ -103,6 +126,7 @@ export default async function DashboardPage() {
         weekSalesLines={weekSalesLines}
         recentOrders={recentOrders}
         timezone={timezone}
+        velocityByProductId={velocityByProductId}
       />
     </div>
   );

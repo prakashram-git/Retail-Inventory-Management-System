@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Plus,
   Search,
@@ -12,6 +13,7 @@ import {
   TriangleAlert,
   PackageX,
   PackagePlus,
+  ClipboardCheck,
 } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
 import { getEffectiveThreshold, getStockStatus } from "@/lib/utils/inventory";
@@ -178,10 +180,20 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
             </div>
           </div>
 
-          <Button onClick={openCreate} className="shrink-0">
-            <Plus />
-            New product
-          </Button>
+          <div className="flex shrink-0 gap-2">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/dashboard/inventory/stock-take" />}
+            >
+              <ClipboardCheck />
+              Stock take
+            </Button>
+            <Button onClick={openCreate}>
+              <Plus />
+              New product
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

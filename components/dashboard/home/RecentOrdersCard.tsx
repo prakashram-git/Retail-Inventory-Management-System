@@ -24,7 +24,7 @@ export function RecentOrdersCard({ orders }: { orders: RecentOrder[] }) {
   const { formatPrice } = useStore();
 
   return (
-    <Card size="sm" className="flex flex-col">
+    <Card size="sm" className="flex flex-col transition-shadow hover:shadow-md">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Recent orders</CardTitle>
         <Button

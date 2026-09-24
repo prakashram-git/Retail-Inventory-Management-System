@@ -24,7 +24,7 @@ export function CategoryOverviewCard({ categories, productCountById }: {
     .slice(0, 6);
 
   return (
-    <Card size="sm" className="flex flex-col">
+    <Card size="sm" className="flex flex-col transition-shadow hover:shadow-md">
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Categories</CardTitle>
         <Button

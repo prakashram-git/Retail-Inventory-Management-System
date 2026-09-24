@@ -198,6 +198,45 @@ export function buildTopProducts(sales: ReportsSaleLine[], limit = 5): TopProduc
     .slice(0, limit);
 }
 
+const REORDER_COVERAGE_DAYS = 14;
+
+/** Net units sold per day, per product, averaged over `windowDays` (the range `sales` already covers). */
+export function buildSalesVelocity(
+  sales: Pick<ReportsSaleLine, "product_id" | "quantity" | "refunded_quantity">[],
+  windowDays: number
+): Map<string, number> {
+  const totalByProduct = new Map<string, number>();
+
+  for (const line of sales) {
+    const qty = netQuantity(line);
+    if (qty <= 0 || !line.product_id) continue;
+    totalByProduct.set(line.product_id, (totalByProduct.get(line.product_id) ?? 0) + qty);
+  }
+
+  const perDay = new Map<string, number>();
+  for (const [productId, total] of totalByProduct) {
+    perDay.set(productId, total / windowDays);
+  }
+  return perDay;
+}
+
+/**
+ * A simple reorder-point heuristic: order enough to cover REORDER_COVERAGE_DAYS
+ * of recent demand. A product with no sales in the window has unitsPerDay = 0,
+ * which would suggest 0 forever — so the threshold-based floor (2x the reorder
+ * point) keeps a plausible suggestion for new or seasonal items instead.
+ */
+export function suggestReorderQuantity(
+  currentStock: number,
+  threshold: number,
+  unitsPerDay: number
+): number {
+  const targetFromVelocity = Math.ceil(unitsPerDay * REORDER_COVERAGE_DAYS);
+  const targetFromThreshold = threshold * 2;
+  const target = Math.max(targetFromVelocity, targetFromThreshold);
+  return Math.max(0, Math.ceil(target - currentStock));
+}
+
 export interface PaymentBreakdownSlice {
   method: PaymentMethod;
   revenue: number;

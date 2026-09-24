@@ -9,7 +9,7 @@ interface KpiItem {
   label: string;
   value: string;
   icon: LucideIcon;
-  tone?: "default" | "warning" | "destructive";
+  tone?: "default" | "warning" | "destructive" | "success" | "info" | "accent";
   mono?: boolean;
   /** Percent change vs. a comparison period; null/undefined omits the badge
    * (e.g. the previous period had no baseline to compare against). Positive
@@ -23,17 +23,20 @@ export function InventoryKpiGrid({ items }: { items: KpiItem[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {items.map((item) => (
-        <Card key={item.label} size="sm">
+        <Card key={item.label} size="sm" className="transition-shadow hover:shadow-md">
           <CardContent className="flex items-center gap-3">
             <div
               className={cn(
-                "flex size-9 shrink-0 items-center justify-center rounded-lg",
+                "flex size-10 shrink-0 items-center justify-center rounded-xl",
                 item.tone === "destructive" && "bg-destructive/10 text-destructive",
-                item.tone === "warning" && "bg-destructive/10 text-destructive",
+                item.tone === "warning" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+                item.tone === "success" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+                item.tone === "info" && "bg-sky-500/10 text-sky-600 dark:text-sky-400",
+                item.tone === "accent" && "bg-violet-500/10 text-violet-600 dark:text-violet-400",
                 (!item.tone || item.tone === "default") && "bg-primary/10 text-primary"
               )}
             >
-              <item.icon className="size-4" />
+              <item.icon className="size-4.5" />
             </div>
             <div className="flex min-w-0 flex-col">
               <span className="text-xs text-muted-foreground">{item.label}</span>
