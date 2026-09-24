@@ -149,6 +149,7 @@ export function InviteStaffDialog({ open, onOpenChange, stores }: InviteStaffDia
                   <SelectContent>
                     <SelectItem value="cashier">Cashier</SelectItem>
                     <SelectItem value="store_manager">Store manager</SelectItem>
+                    <SelectItem value="ui_designer">UI designer</SelectItem>
                     <SelectItem value="super_admin">Super admin</SelectItem>
                   </SelectContent>
                 </Select>

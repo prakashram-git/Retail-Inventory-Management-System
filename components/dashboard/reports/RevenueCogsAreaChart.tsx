@@ -13,6 +13,7 @@ import {
 import { useStore } from "@/components/providers/StoreProvider";
 import { useChartPalette } from "@/lib/utils/chart-palette";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { RevenueCogsPoint } from "@/lib/reports/aggregate";
 
 function LegendKey({ color, label }: { color: string; label: string }) {
@@ -47,7 +48,13 @@ function AreaTooltip({
   );
 }
 
-export function RevenueCogsAreaChart({ points }: { points: RevenueCogsPoint[] }) {
+interface RevenueCogsAreaChartProps {
+  points: RevenueCogsPoint[];
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export function RevenueCogsAreaChart({ points, className, style }: RevenueCogsAreaChartProps) {
   const { formatPrice } = useStore();
   const palette = useChartPalette();
   const revenueColor = palette.categorical[0];
@@ -58,7 +65,7 @@ export function RevenueCogsAreaChart({ points }: { points: RevenueCogsPoint[] })
   const grossMarginPercent = totalRevenue > 0 ? ((totalRevenue - totalCogs) / totalRevenue) * 100 : 0;
 
   return (
-    <Card size="sm" className="transition-shadow hover:shadow-md">
+    <Card size="sm" className={cn("transition-shadow hover:shadow-md", className)} style={style}>
       <CardHeader>
         <CardTitle>Revenue vs. COGS</CardTitle>
         <CardDescription>

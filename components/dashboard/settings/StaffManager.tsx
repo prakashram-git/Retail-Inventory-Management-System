@@ -16,12 +16,14 @@ const ROLE_LABEL: Record<UserRole, string> = {
   super_admin: "Super admin",
   store_manager: "Store manager",
   cashier: "Cashier",
+  ui_designer: "UI designer",
 };
 
 const ROLE_VARIANT: Record<UserRole, "default" | "secondary" | "outline"> = {
   super_admin: "default",
   store_manager: "secondary",
   cashier: "outline",
+  ui_designer: "outline",
 };
 
 interface StaffManagerProps {

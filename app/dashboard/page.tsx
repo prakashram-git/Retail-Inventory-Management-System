@@ -6,9 +6,13 @@ import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
 import { getRangeBounds } from "@/lib/reports/timezone";
 import { mapSaleLineRows, type SaleLineJoinRow } from "@/lib/reports/shape";
 import { buildSalesVelocity } from "@/lib/reports/aggregate";
+import { resolveDashboardLayout } from "@/lib/dashboard/resolve-layout";
 import { HomeDashboard } from "@/components/dashboard/home/HomeDashboard";
 import type { OrderRow } from "@/lib/orders/types";
 import type { Category, Product } from "@/lib/types/domain";
+import type { ReportsSaleTouch, StockMovementRow } from "@/lib/reports/types";
+
+const DEAD_STOCK_LOOKBACK_DAYS = 90;
 
 export const dynamic = "force-dynamic";
 
@@ -42,9 +46,10 @@ export default async function DashboardPage() {
     .single();
   const timezone = store?.timezone ?? "UTC";
 
-  const { from: todayFrom } = getRangeBounds("today", timezone);
+  const { from: todayFrom, to: todayTo } = getRangeBounds("today", timezone);
   const { from: weekFrom, to: weekTo } = getRangeBounds("7d", timezone);
   const { from: thirtyFrom, to: thirtyTo } = getRangeBounds("30d", timezone);
+  const ninetyFrom = new Date(todayTo.getTime() - DEAD_STOCK_LOOKBACK_DAYS * 86_400_000);
 
   const [
     { data: categoryRows },
@@ -52,6 +57,9 @@ export default async function DashboardPage() {
     { data: weekSaleLineRows },
     { data: recentOrderRows },
     { data: thirtyDayItemRows },
+    { data: ninetyDayTouchRows },
+    { data: todayShrinkageRows },
+    resolvedLayout,
   ] = await Promise.all([
     supabase
       .from("categories")
@@ -85,6 +93,24 @@ export default async function DashboardPage() {
       .neq("order.status", "voided")
       .gte("order.created_at", thirtyFrom.toISOString())
       .lte("order.created_at", thirtyTo.toISOString()),
+    // Feeds the "Dead Stock Monitor" widget — a longer lookback than the
+    // 45-day dead-stock cutoff so a product's actual last-sale date is known
+    // rather than just "no sale in this window".
+    supabase
+      .from("order_items")
+      .select("product_id, quantity, refunded_quantity, order:orders!inner(created_at, status, store_id)")
+      .eq("order.store_id", storeId)
+      .neq("order.status", "voided")
+      .gte("order.created_at", ninetyFrom.toISOString()),
+    // Feeds the "Shrinkage" KPI — today's shrinkage/offline-variance
+    // inventory_logs entries, priced at cost.
+    supabase
+      .from("inventory_logs")
+      .select("change_type, quantity, product:products(cost_price)")
+      .eq("store_id", storeId)
+      .in("change_type", ["shrinkage", "offline_variance"])
+      .gte("created_at", todayFrom.toISOString()),
+    resolveDashboardLayout(supabase, storeId),
   ]);
 
   const categories = (categoryRows ?? []) as Category[];
@@ -107,6 +133,35 @@ export default async function DashboardPage() {
     )
   );
 
+  interface RawItemRow {
+    product_id: string;
+    quantity: number;
+    refunded_quantity: number;
+    order: { created_at: string };
+  }
+  const saleTouches: ReportsSaleTouch[] = ((ninetyDayTouchRows ?? []) as unknown as RawItemRow[]).map((row) => ({
+    product_id: row.product_id,
+    created_at: row.order.created_at,
+    net_quantity: Math.max(0, row.quantity - row.refunded_quantity),
+  }));
+
+  const stockMovements = ((todayShrinkageRows ?? []) as unknown as {
+    change_type: string;
+    quantity: number;
+    product: { cost_price: number } | null;
+  }[]).map((row) => ({
+    id: "",
+    created_at: "",
+    change_type: row.change_type,
+    quantity: row.quantity,
+    previous_stock: 0,
+    new_stock: 0,
+    notes: null,
+    product_name: "",
+    product_sku: "",
+    cost_price: row.product?.cost_price ?? 0,
+  })) satisfies StockMovementRow[];
+
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">
       <div>
@@ -127,6 +182,10 @@ export default async function DashboardPage() {
         recentOrders={recentOrders}
         timezone={timezone}
         velocityByProductId={velocityByProductId}
+        saleTouches={saleTouches}
+        stockMovements={stockMovements}
+        layoutConfig={resolvedLayout.layoutConfig}
+        themeConfig={resolvedLayout.themeConfig}
       />
     </div>
   );

@@ -76,7 +76,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
     <SyncProvider>
       <StoreProvider role={profile.role} activeStore={activeStore} stores={stores}>
         <div className="flex h-dvh flex-col">
-          <Header />
+          <Header role={profile.role} />
           <div className="flex min-h-0 min-w-0 flex-1">
             <Sidebar
               role={profile.role}

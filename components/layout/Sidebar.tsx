@@ -13,6 +13,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   super_admin: "Super admin",
   store_manager: "Store manager",
   cashier: "Cashier",
+  ui_designer: "UI designer",
 };
 
 interface SidebarProfile {

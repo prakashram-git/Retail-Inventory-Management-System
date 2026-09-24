@@ -3,6 +3,14 @@ import { createServerClient } from "@supabase/ssr";
 
 const PUBLIC_PATHS = ["/login"];
 
+const UI_DESIGNER_ALLOWED_PATHS = [
+  "/dashboard",
+  "/dashboard/settings",
+  "/dashboard/settings/appearance",
+  "/dashboard/settings/layout-builder",
+  "/dashboard/settings/account",
+];
+
 /**
  * Next.js 16 renamed the `middleware` file convention to `proxy` (function
  * must be named `proxy`, edge runtime no longer supported here) — see
@@ -60,15 +68,25 @@ export async function proxy(request: NextRequest) {
     return redirectWithRefreshedSession(loginUrl);
   }
 
-  if (user && (pathname === "/" || pathname.startsWith("/dashboard"))) {
+  if (user && (pathname === "/" || pathname.startsWith("/dashboard") || pathname === "/pos")) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
 
-    if (profile?.role === "cashier") {
+    if (profile?.role === "cashier" && pathname !== "/pos") {
       return redirectWithRefreshedSession(new URL("/pos", request.url));
+    }
+
+    // ui_designer is scoped to appearance/layout customization only — no POS,
+    // orders, inventory, reports, staff, or store administration. This is a
+    // convenience redirect, not the real boundary: the actual enforcement is
+    // requireLayoutEditor()/requireStoreContext() on the server actions and
+    // the RLS policies in add_ui_designer_role.sql, since a direct POST or a
+    // direct Supabase call both bypass this middleware.
+    if (profile?.role === "ui_designer" && !UI_DESIGNER_ALLOWED_PATHS.some((p) => pathname === p)) {
+      return redirectWithRefreshedSession(new URL("/dashboard/settings/appearance", request.url));
     }
 
     if (pathname === "/") {

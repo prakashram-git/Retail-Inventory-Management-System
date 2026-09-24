@@ -135,6 +135,22 @@
   }
 }
 
+/*
+ * Applied to a dashboard widget's own Card element by the Layout Builder
+ * (see lib/dashboard/layout-types.ts). The custom properties are set on the
+ * grid container in HomeDashboard.tsx from a store's dashboard_layouts.theme_config
+ * and inherit down via normal CSS custom-property cascading — !important is
+ * needed because this competes with the Card component's own `bg-card`/
+ * `rounded-xl` Tailwind utility classes at equal selector specificity, where
+ * source order (not className order) would otherwise decide the winner.
+ */
+.dashboard-widget {
+  border-radius: var(--widget-radius, var(--radius-xl)) !important;
+  background-color: color-mix(in oklch, var(--color-card) var(--widget-bg-alpha, 100%), transparent) !important;
+  backdrop-filter: blur(6px);
+  border-left: 4px solid var(--widget-accent, var(--color-primary));
+}
+
 @media print {
   body * {
     visibility: hidden;

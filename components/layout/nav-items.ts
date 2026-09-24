@@ -22,7 +22,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
-    roles: ["super_admin", "store_manager"],
+    roles: ["super_admin", "store_manager", "ui_designer"],
   },
   {
     href: "/dashboard/categories",
@@ -58,7 +58,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/settings",
     label: "Settings",
     icon: Settings,
-    roles: ["super_admin", "store_manager"],
+    roles: ["super_admin", "store_manager", "ui_designer"],
   },
 ];
 

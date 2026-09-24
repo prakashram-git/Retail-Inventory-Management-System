@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getEffectiveThreshold, getStockStatus } from "@/lib/utils/inventory";
 import { suggestReorderQuantity } from "@/lib/reports/aggregate";
+import { cn } from "@/lib/utils";
 import type { Category, Product } from "@/lib/types/domain";
 
 interface LowStockRow {
@@ -22,10 +23,14 @@ export function LowStockCard({
   products,
   categories,
   velocityByProductId,
+  className,
+  style,
 }: {
   products: Product[];
   categories: Category[];
   velocityByProductId: Record<string, number>;
+  className?: string;
+  style?: React.CSSProperties;
 }) {
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
@@ -43,7 +48,7 @@ export function LowStockCard({
     .slice(0, 6);
 
   return (
-    <Card size="sm" className="flex flex-col transition-shadow hover:shadow-md">
+    <Card size="sm" className={cn("flex flex-col transition-shadow hover:shadow-md", className)} style={style}>
       <CardHeader className="flex-row items-center justify-between">
         <div>
           <CardTitle>Needs restocking</CardTitle>

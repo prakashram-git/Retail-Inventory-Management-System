@@ -5,31 +5,33 @@ import Link from "next/link";
 import {
   DollarSign,
   TrendingUp,
-  Receipt as ReceiptIcon,
-  Boxes,
   Plus,
   FolderPlus,
   ShoppingCart,
   BarChart3,
+  Wallet,
+  PackageMinus,
 } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { InventoryKpiGrid } from "@/components/dashboard/inventory/InventoryKpiGrid";
+import { MetricTile } from "./MetricTile";
 import { RevenueCogsAreaChart } from "@/components/dashboard/reports/RevenueCogsAreaChart";
 import {
   buildKpiSummary,
   buildRevenueVsCogsSeries,
   buildTopProducts,
+  buildDeadInventory,
 } from "@/lib/reports/aggregate";
-import { getEffectiveThreshold, getStockStatus } from "@/lib/utils/inventory";
-import type { ReportsSaleLine } from "@/lib/reports/types";
+import type { ReportsSaleLine, ReportsSaleTouch, StockMovementRow } from "@/lib/reports/types";
 import type { Category, Product } from "@/lib/types/domain";
 import type { OrderRow } from "@/lib/orders/types";
+import type { DashboardWidgetConfig, DashboardThemeConfig, BorderRadiusStyle } from "@/lib/dashboard/layout-types";
 import { RecentOrdersCard } from "./RecentOrdersCard";
 import { LowStockCard } from "./LowStockCard";
 import { TopProductsCard } from "./TopProductsCard";
 import { CategoryOverviewCard } from "./CategoryOverviewCard";
+import { DeadStockCard } from "./DeadStockCard";
 
 interface HomeDashboardProps {
   categories: Category[];
@@ -43,6 +45,10 @@ interface HomeDashboardProps {
   timezone: string;
   /** Net units sold per day over the last 30 days, keyed by product id — feeds the reorder suggestion. */
   velocityByProductId: Record<string, number>;
+  saleTouches: ReportsSaleTouch[];
+  stockMovements: StockMovementRow[];
+  layoutConfig: DashboardWidgetConfig[];
+  themeConfig: DashboardThemeConfig;
 }
 
 const QUICK_ACTIONS = [
@@ -52,6 +58,12 @@ const QUICK_ACTIONS = [
   { href: "/dashboard/reports", label: "View reports", icon: BarChart3 },
 ];
 
+const RADIUS_MAP: Record<BorderRadiusStyle, string> = {
+  sharp: "4px",
+  rounded: "16px",
+  pill: "28px",
+};
+
 export function HomeDashboard({
   categories,
   products,
@@ -60,29 +72,26 @@ export function HomeDashboard({
   recentOrders,
   timezone,
   velocityByProductId,
+  saleTouches,
+  stockMovements,
+  layoutConfig,
+  themeConfig,
 }: HomeDashboardProps) {
   const { formatPrice } = useStore();
-  const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
-  const todayKpis = useMemo(() => buildKpiSummary(todaySalesLines, []), [todaySalesLines]);
+  const todayKpis = useMemo(
+    () => buildKpiSummary(todaySalesLines, stockMovements),
+    [todaySalesLines, stockMovements]
+  );
   const weekTrend = useMemo(
     () => buildRevenueVsCogsSeries(weekSalesLines, timezone, "day"),
     [weekSalesLines, timezone]
   );
   const topProducts = useMemo(() => buildTopProducts(weekSalesLines, 5), [weekSalesLines]);
-
-  const activeProducts = useMemo(() => products.filter((p) => p.is_active), [products]);
-  const stockAlerts = useMemo(() => {
-    let low = 0;
-    let out = 0;
-    for (const product of activeProducts) {
-      const threshold = getEffectiveThreshold(product, categoryById.get(product.category_id ?? ""));
-      const status = getStockStatus(product.current_stock, threshold);
-      if (status === "low") low += 1;
-      if (status === "out") out += 1;
-    }
-    return { low, out };
-  }, [activeProducts, categoryById]);
+  const deadStock = useMemo(
+    () => buildDeadInventory(products, saleTouches),
+    [products, saleTouches]
+  );
 
   const productCountById = useMemo(() => {
     const counts = new Map<string, number>();
@@ -92,6 +101,76 @@ export function HomeDashboard({
     }
     return counts;
   }, [products]);
+
+  const widgetClassName = "dashboard-widget";
+  const widgetStyle: React.CSSProperties = {};
+
+  const widgetRegistry: Record<string, React.ReactNode> = {
+    metric_gross_revenue: (
+      <MetricTile
+        label="Gross revenue"
+        value={formatPrice(todayKpis.grossRevenue)}
+        icon={DollarSign}
+        tone="success"
+        mono={themeConfig.monoNumbers}
+        className={widgetClassName}
+        style={widgetStyle}
+      />
+    ),
+    metric_net_profit: (
+      <MetricTile
+        label="Net profit"
+        value={formatPrice(todayKpis.netProfit)}
+        icon={TrendingUp}
+        tone="accent"
+        mono={themeConfig.monoNumbers}
+        className={widgetClassName}
+        style={widgetStyle}
+      />
+    ),
+    metric_aov: (
+      <MetricTile
+        label="Avg. order value"
+        value={formatPrice(todayKpis.averageOrderValue)}
+        icon={Wallet}
+        tone="info"
+        mono={themeConfig.monoNumbers}
+        className={widgetClassName}
+        style={widgetStyle}
+      />
+    ),
+    metric_shrinkage: (
+      <MetricTile
+        label="Shrinkage"
+        value={formatPrice(todayKpis.shrinkageValue)}
+        icon={PackageMinus}
+        tone={todayKpis.shrinkageValue > 0 ? "destructive" : "default"}
+        mono={themeConfig.monoNumbers}
+        className={widgetClassName}
+        style={widgetStyle}
+      />
+    ),
+    chart_revenue_vs_cogs: (
+      <RevenueCogsAreaChart points={weekTrend} className={widgetClassName} style={widgetStyle} />
+    ),
+    widget_restock_alerts: (
+      <LowStockCard
+        products={products}
+        categories={categories}
+        velocityByProductId={velocityByProductId}
+        className={widgetClassName}
+        style={widgetStyle}
+      />
+    ),
+    widget_recent_orders: (
+      <RecentOrdersCard orders={recentOrders} className={widgetClassName} style={widgetStyle} />
+    ),
+    widget_dead_stock: <DeadStockCard rows={deadStock} className={widgetClassName} style={widgetStyle} />,
+  };
+
+  const visibleWidgets = layoutConfig
+    .filter((w) => w.visible && widgetRegistry[w.id])
+    .sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,37 +191,21 @@ export function HomeDashboard({
         ))}
       </div>
 
-      <InventoryKpiGrid
-        items={[
+      <div
+        className="grid grid-cols-12 gap-4"
+        style={
           {
-            label: "Today's revenue",
-            value: formatPrice(todayKpis.grossRevenue),
-            icon: DollarSign,
-            mono: true,
-            tone: "success",
-          },
-          { label: "Today's orders", value: String(todayKpis.orderCount), icon: ReceiptIcon, tone: "info" },
-          {
-            label: "Today's profit",
-            value: formatPrice(todayKpis.netProfit),
-            icon: TrendingUp,
-            mono: true,
-            tone: "accent",
-          },
-          {
-            label: "Stock alerts",
-            value: String(stockAlerts.low + stockAlerts.out),
-            icon: Boxes,
-            tone: stockAlerts.out > 0 ? "destructive" : stockAlerts.low > 0 ? "warning" : "default",
-          },
-        ]}
-      />
-
-      <RevenueCogsAreaChart points={weekTrend} />
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <RecentOrdersCard orders={recentOrders} />
-        <LowStockCard products={products} categories={categories} velocityByProductId={velocityByProductId} />
+            "--widget-radius": RADIUS_MAP[themeConfig.borderRadius],
+            "--widget-bg-alpha": `${themeConfig.glassOpacity}%`,
+            "--widget-accent": themeConfig.accentColor,
+          } as React.CSSProperties
+        }
+      >
+        {visibleWidgets.map((widget) => (
+          <div key={widget.id} className="col-span-12" style={{ gridColumn: `span ${widget.w} / span ${widget.w}` }}>
+            {widgetRegistry[widget.id]}
+          </div>
+        ))}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

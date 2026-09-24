@@ -9,6 +9,8 @@ const appearanceInputSchema = z.object({
   home_background_url: z.string().url(),
   blur_strength: z.coerce.number().min(0).max(25),
   overlay_opacity: z.coerce.number().min(0.1).max(0.9),
+  app_logo_url: z.string().url().nullish(),
+  favicon_url: z.string().url().nullish(),
 });
 
 export type AppearanceInput = z.input<typeof appearanceInputSchema>;
@@ -42,7 +44,7 @@ export async function updateAppearance(scope: "global" | "store", input: Appeara
     }
     storeId = null;
   } else {
-    if (role !== "store_manager" && role !== "super_admin") {
+    if (role !== "store_manager" && role !== "super_admin" && role !== "ui_designer") {
       throw new Error("Not authorized.");
     }
     storeId = profile.store_id;

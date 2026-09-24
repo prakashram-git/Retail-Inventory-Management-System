@@ -8,10 +8,14 @@
     "start": "next start",
     "lint": "eslint",
     "backup:cli": "NODE_OPTIONS=--conditions=react-server tsx scripts/backup-cli.ts",
-    "backup:test": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-backup-engine.ts"
+    "backup:test": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-backup-engine.ts",
+    "test:layout-role": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-layout-role.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.9.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.0",

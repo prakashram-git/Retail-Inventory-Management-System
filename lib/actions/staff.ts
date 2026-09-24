@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requireSuperAdmin } from "./shared";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const roleSchema = z.enum(["super_admin", "store_manager", "cashier"]);
+const roleSchema = z.enum(["super_admin", "store_manager", "cashier", "ui_designer"]);
 
 /**
  * Optional, E.164-shaped ("+14155551234"). Kept loose (7-15 digits after the

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ORDER_STATUS_LABEL, ORDER_STATUS_VARIANT } from "@/lib/orders/status";
+import { cn } from "@/lib/utils";
 import type { OrderRow } from "@/lib/orders/types";
 
 type RecentOrder = Pick<
@@ -20,11 +21,17 @@ const PAYMENT_LABEL: Record<RecentOrder["payment_method"], string> = {
   qr_transfer: "QR transfer",
 };
 
-export function RecentOrdersCard({ orders }: { orders: RecentOrder[] }) {
+interface RecentOrdersCardProps {
+  orders: RecentOrder[];
+  className?: string;
+  style?: React.CSSProperties;
+}
+
+export function RecentOrdersCard({ orders, className, style }: RecentOrdersCardProps) {
   const { formatPrice } = useStore();
 
   return (
-    <Card size="sm" className="flex flex-col transition-shadow hover:shadow-md">
+    <Card size="sm" className={cn("flex flex-col transition-shadow hover:shadow-md", className)} style={style}>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Recent orders</CardTitle>
         <Button
