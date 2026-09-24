@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Store, Image as ImageIcon, Users, KeyRound, ShieldCheck, DatabaseBackup, LayoutPanelTop, LifeBuoy } from "lucide-react";
+import { Store, Image as ImageIcon, Users, KeyRound, ShieldCheck, DatabaseBackup, LayoutPanelTop, LifeBuoy, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types/domain";
 
@@ -40,6 +40,7 @@ const SETTINGS_TABS = [
     roles: ["super_admin"],
   },
   { href: "/dashboard/settings/help", label: "Help", icon: LifeBuoy, roles: ["super_admin"] },
+  { href: "/dashboard/settings/profiles", label: "Profiles", icon: SlidersHorizontal, roles: ["super_admin"] },
 ] as const;
 
 export function SettingsTabs({ role }: { role: UserRole }) {

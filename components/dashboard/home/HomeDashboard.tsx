@@ -23,6 +23,7 @@ import type { ReportsSaleLine, ReportsSaleTouch, StockMovementRow } from "@/lib/
 import type { Category, Product } from "@/lib/types/domain";
 import type { OrderRow } from "@/lib/orders/types";
 import type { DashboardWidgetConfig, DashboardThemeConfig, BorderRadiusStyle } from "@/lib/dashboard/layout-types";
+import type { StoreFeatures } from "@/lib/profiles/types";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { RecentOrdersCard } from "./RecentOrdersCard";
 import { LowStockCard } from "./LowStockCard";
@@ -53,6 +54,7 @@ interface HomeDashboardProps {
   layoutConfig: DashboardWidgetConfig[];
   themeConfig: DashboardThemeConfig;
   canManageCatalog: boolean;
+  features: StoreFeatures;
 }
 
 const RADIUS_MAP: Record<BorderRadiusStyle, string> = {
@@ -74,6 +76,7 @@ export function HomeDashboard({
   layoutConfig,
   themeConfig,
   canManageCatalog,
+  features,
 }: HomeDashboardProps) {
   const { formatPrice } = useStore();
 
@@ -184,7 +187,7 @@ export function HomeDashboard({
 
   return (
     <div className="flex flex-col gap-4">
-      <QuickActionsBar categories={categories} canManageCatalog={canManageCatalog} />
+      <QuickActionsBar categories={categories} canManageCatalog={canManageCatalog} initialFeatures={features} />
 
       <div
         className="grid grid-cols-12 gap-4"

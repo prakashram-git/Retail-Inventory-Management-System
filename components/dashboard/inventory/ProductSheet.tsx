@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition, type KeyboardEvent } from "
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { X, ImagePlus, Loader2, Wand2, Keyboard, ScanBarcode, Camera, CheckCircle2, AlertCircle } from "lucide-react";
+import { X, ImagePlus, Loader2, GripHorizontal, ChevronDown, ChevronUp, Wand2, Keyboard, ScanBarcode, Camera, CheckCircle2, AlertCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import {
   checkProductIdentifiers,
@@ -20,14 +20,8 @@ import { cn } from "@/lib/utils";
 import { productFormSchema, type ProductFormInput } from "@/lib/products/schema";
 import { useStore } from "@/components/providers/StoreProvider";
 import { computeMarginPercent } from "@/lib/utils/inventory";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-  SheetFooter,
-} from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useDraggablePanel } from "@/lib/hooks/use-draggable-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,10 +36,10 @@ import type { Category, ProductWithCategory } from "@/lib/types/domain";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 type SkuMode = "auto" | "manual" | "scan";
-const SKU_MODES: { value: SkuMode; label: string; icon: typeof Wand2 }[] = [
-  { value: "auto", label: "Automated Taxonomy Mask", icon: Wand2 },
-  { value: "manual", label: "Manual Semantic Entry", icon: Keyboard },
-  { value: "scan", label: "Scan Barcode", icon: ScanBarcode },
+const SKU_MODES: { value: SkuMode; label: string; full: string; icon: typeof Wand2 }[] = [
+  { value: "auto", label: "Auto", full: "Automated Taxonomy Mask", icon: Wand2 },
+  { value: "manual", label: "Manual", full: "Manual Semantic Entry", icon: Keyboard },
+  { value: "scan", label: "Scan", full: "Scan Barcode", icon: ScanBarcode },
 ];
 
 interface ProductSheetProps {
@@ -84,6 +78,9 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
   const [idStatus, setIdStatus] = useState<{ skuTaken: boolean; barcodeTaken: boolean } | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  // Variants replace the stock field, so their builder must stay visible once switched on.
+  const showMore = moreOpen || hasVariants;
   const [variantRows, setVariantRows] = useState<VariantRow[]>([]);
 
   const {
@@ -112,6 +109,7 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
     setIdStatus(null);
     setHasVariants(false);
     setVariantRows([]);
+    setMoreOpen(false);
   }, [open, product, reset]);
 
   const skuValue = watch("sku") ?? "";
@@ -262,72 +260,49 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
 
   const busy = isPending || isUploading || isGenerating;
   const skuField = register("sku");
+  const { offset, handleProps, recentlyDragged } = useDraggablePanel("product-panel-offset", open);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col overflow-y-auto sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle>{product ? "Edit product" : "New product"}</SheetTitle>
-          <SheetDescription>
-            {product
-              ? "Update pricing, stock, and categorization for this SKU."
-              : "Add a new SKU to this store's catalog."}
-          </SheetDescription>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={(next) => !(recentlyDragged() && !next) && onOpenChange(next)}>
+      {/* Compact floating panel (about half the old full-height sheet); drag the header — or focus
+          the grip and use the arrow keys — to move it, double-click / Home to re-centre. */}
+      <DialogContent
+        showCloseButton
+        // Tailwind v4 centres via the `translate` property (-50%/-50%), so the drag offset is added to it.
+        style={{ translate: `calc(-50% + ${offset.x}px) calc(-50% + ${offset.y}px)` }}
+        // Same width as the New Category dialog; only the essential fields show, the rest sit under "More options".
+        className="flex max-h-[min(27rem,calc(100dvh-2rem))] flex-col gap-0 p-0 sm:max-w-md"
+        data-testid="product-panel"
+      >
+        <div
+          {...handleProps}
+          data-testid="product-panel-handle"
+          className="flex cursor-grab touch-none items-center gap-2 border-b px-3 py-1.5 pr-12 select-none active:cursor-grabbing"
+          title="Drag to move · double-click to re-centre"
+        >
+          <button
+            type="button"
+            data-drag-handle
+            aria-label="Move panel (arrow keys to move, Home to re-centre)"
+            className="rounded p-0.5 text-muted-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <GripHorizontal className="size-4" />
+          </button>
+          <div className="min-w-0">
+            <DialogTitle className="text-sm font-semibold">{product ? "Edit product" : "New product"}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {product ? "Update pricing, stock and categorization." : "Add a new SKU to this store's catalog."}
+            </DialogDescription>
+          </div>
+        </div>
 
         <form
           id="product-form"
           onSubmit={onFormSubmit}
-          className="flex flex-1 flex-col gap-4 px-4"
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-3 py-2 text-xs [&_label]:text-xs [&_textarea]:min-h-14"
         >
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={busy}
-              className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted text-muted-foreground transition-colors hover:border-foreground/40 disabled:opacity-50"
-            >
-              {isUploading ? (
-                <Loader2 className="size-5 animate-spin" />
-              ) : imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={imageUrl} alt="" className="size-full object-cover" />
-              ) : (
-                <ImagePlus className="size-5" />
-              )}
-            </button>
-            <div className="flex flex-col gap-1">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={handleImageSelect}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={busy}
-              >
-                {imageUrl ? "Replace image" : "Upload or capture image"}
-              </Button>
-              {imageUrl && (
-                <button
-                  type="button"
-                  onClick={() => setValue("image_url", null)}
-                  className="text-left text-xs text-muted-foreground hover:text-destructive"
-                >
-                  Remove image
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2 flex flex-col gap-1.5">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="col-span-2 flex flex-col gap-1">
               <Label htmlFor="product-name">Name</Label>
               <Input
                 id="product-name"
@@ -349,13 +324,15 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
                       role="tab"
                       aria-selected={skuMode === mode.value}
                       data-testid={`sku-mode-${mode.value}`}
+                      title={mode.full}
+                      aria-label={mode.full}
                       onClick={() => {
                         setSkuMode(mode.value);
                         setIdStatus(null);
                       }}
                       disabled={busy}
                       className={cn(
-                        "flex items-center justify-center gap-1 rounded-md px-1.5 py-1.5 text-[11px] font-medium leading-tight transition-colors",
+                        "flex items-center justify-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium leading-tight transition-colors",
                         skuMode === mode.value ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
@@ -468,7 +445,6 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
               </div>
             )}
           </div>
-
           <div className="flex flex-col gap-1.5">
             <Label>Category</Label>
             <Controller
@@ -485,7 +461,109 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
               )}
             />
           </div>
-
+          <div className="grid grid-cols-3 gap-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="product-cost">Cost price</Label>
+              <Input
+                id="product-cost"
+                type="number"
+                min={0}
+                step="0.01"
+                {...register("cost_price")}
+                disabled={busy}
+                className="font-mono"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="product-retail">Retail price</Label>
+              <Input
+                id="product-retail"
+                type="number"
+                min={0}
+                step="0.01"
+                {...register("retail_price")}
+                disabled={busy}
+                className="font-mono"
+              />
+            </div>
+            {!(hasVariants && !product) && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="product-stock">Current stock</Label>
+              <Input
+                id="product-stock"
+                type="number"
+                min={0}
+                step="1"
+                {...register("current_stock")}
+                disabled={busy}
+                className="font-mono"
+              />
+            </div>
+            )}
+          </div>
+          <p className="-mt-1 text-[11px] text-muted-foreground">
+            Margin: <span className="font-mono">{margin.toFixed(1)}%</span> · Profit per unit:{" "}
+            <span className="font-mono">
+              {formatPrice((Number(retailPrice) || 0) - (Number(costPrice) || 0))}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setMoreOpen((v) => !v)}
+            aria-expanded={showMore}
+            data-testid="more-options-toggle"
+            className="flex items-center justify-between rounded-lg border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted/50"
+          >
+            <span>{showMore ? "Fewer options" : "More options — image, tags, threshold, variants…"}</span>
+            {showMore ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+          </button>
+          {showMore && (
+          <>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={busy}
+              className="relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted text-muted-foreground transition-colors hover:border-foreground/40 disabled:opacity-50"
+            >
+              {isUploading ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt="" className="size-full object-cover" />
+              ) : (
+                <ImagePlus className="size-5" />
+              )}
+            </button>
+            <div className="flex flex-col gap-1">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={busy}
+              >
+                {imageUrl ? "Replace image" : "Upload or capture image"}
+              </Button>
+              {imageUrl && (
+                <button
+                  type="button"
+                  onClick={() => setValue("image_url", null)}
+                  className="text-left text-xs text-muted-foreground hover:text-destructive"
+                >
+                  Remove image
+                </button>
+              )}
+            </div>
+          </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="product-tags">Secondary categories / tags</Label>
             <div className="flex min-h-8 flex-wrap items-center gap-1.5 rounded-lg border border-input px-2 py-1.5">
@@ -513,75 +591,7 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
               />
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-cost">Cost price</Label>
-              <Input
-                id="product-cost"
-                type="number"
-                min={0}
-                step="0.01"
-                {...register("cost_price")}
-                disabled={busy}
-                className="font-mono"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-retail">Retail price</Label>
-              <Input
-                id="product-retail"
-                type="number"
-                min={0}
-                step="0.01"
-                {...register("retail_price")}
-                disabled={busy}
-                className="font-mono"
-              />
-            </div>
-          </div>
-
-          <p className="text-xs text-muted-foreground">
-            Margin: <span className="font-mono">{margin.toFixed(1)}%</span> · Profit per unit:{" "}
-            <span className="font-mono">
-              {formatPrice((Number(retailPrice) || 0) - (Number(costPrice) || 0))}
-            </span>
-          </p>
-
-          {!product && (
-            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-              <div className="flex flex-col">
-                <Label htmlFor="product-has-variants">This product has variants</Label>
-                <p className="text-xs text-muted-foreground">Size, color… each variant gets its own SKU, barcode, price and stock.</p>
-              </div>
-              <Switch id="product-has-variants" checked={hasVariants} onCheckedChange={setHasVariants} disabled={busy} data-testid="has-variants" />
-            </div>
-          )}
-          {!product && hasVariants && (
-            <VariantMatrixBuilder
-              baseSku={skuValue}
-              defaults={{ retail_price: String(retailPrice ?? 0), cost_price: String(costPrice ?? 0) }}
-              rows={variantRows}
-              onRowsChange={setVariantRows}
-              disabled={busy}
-            />
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            {!(hasVariants && !product) && (
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="product-stock">Current stock</Label>
-              <Input
-                id="product-stock"
-                type="number"
-                min={0}
-                step="1"
-                {...register("current_stock")}
-                disabled={busy}
-                className="font-mono"
-              />
-            </div>
-            )}
+          <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="product-threshold">Low-stock threshold</Label>
               <Controller
@@ -605,7 +615,6 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
               />
             </div>
           </div>
-
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="product-description">Description</Label>
             <Textarea
@@ -615,7 +624,6 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
               placeholder="Optional"
             />
           </div>
-
           <div className="flex items-center justify-between rounded-lg border px-3 py-2">
             <div className="flex flex-col">
               <Label htmlFor="product-active">Active</Label>
@@ -636,16 +644,36 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
               )}
             />
           </div>
+          {!product && (
+            <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+              <div className="flex flex-col">
+                <Label htmlFor="product-has-variants">This product has variants</Label>
+                <p className="text-xs text-muted-foreground">Size, color… each variant gets its own SKU, barcode, price and stock.</p>
+              </div>
+              <Switch id="product-has-variants" checked={hasVariants} onCheckedChange={setHasVariants} disabled={busy} data-testid="has-variants" />
+            </div>
+          )}
+          {!product && hasVariants && (
+            <VariantMatrixBuilder
+              baseSku={skuValue}
+              defaults={{ retail_price: String(retailPrice ?? 0), cost_price: String(costPrice ?? 0) }}
+              rows={variantRows}
+              onRowsChange={setVariantRows}
+              disabled={busy}
+            />
+          )}
+          </>
+          )}
         </form>
 
         <CameraBarcodeScanner open={cameraOpen} onOpenChange={setCameraOpen} onDetect={(code) => { applyScan(code); setCameraOpen(false); }} />
 
-        <SheetFooter>
+        <div className="border-t px-3 py-2">
           <Button type="submit" form="product-form" disabled={busy} className="w-full">
             {isPending ? "Saving..." : product ? "Save changes" : "Create product"}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

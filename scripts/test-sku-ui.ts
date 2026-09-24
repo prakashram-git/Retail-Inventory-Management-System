@@ -129,6 +129,7 @@ async function main() {
     await page.locator("#product-sku").fill("tcuitee");
     await page.locator("#product-retail").fill("25");
     await page.locator("#product-cost").fill("10");
+    await page.getByTestId("more-options-toggle").click();
     await page.getByTestId("has-variants").click();
     await page.getByLabel("Color values").fill("Black, Silver");
     await page.getByLabel("Color values").press("Enter");

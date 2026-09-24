@@ -20,7 +20,8 @@
     "test:help-trigger": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-help-trigger.ts",
     "test:logout-enhanced": "tsx scripts/test-logout-enhanced.ts",
     "test:sku": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-sku-architecture.ts",
-    "test:sku-ui": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-sku-ui.ts"
+    "test:sku-ui": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-sku-ui.ts",
+    "test:store-profiles": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-store-profiles.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

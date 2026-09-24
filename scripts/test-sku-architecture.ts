@@ -97,6 +97,7 @@ async function main() {
       await page.locator("#product-name").fill("TC-SKU Tee");
       await page.locator("#product-sku").fill("tcskutee");
       await page.locator("#product-retail").fill("20");
+      await page.getByTestId("more-options-toggle").click();
       await page.getByTestId("has-variants").click();
       await page.getByLabel("Color values").fill("Black, Silver");
       await page.getByLabel("Color values").press("Enter");

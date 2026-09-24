@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireStoreContext } from "./shared";
 import { productFormSchema, type ProductFormInput } from "@/lib/products/schema";
 import { variantProductSchema, type VariantProductInput } from "@/lib/products/variants";
+import { getStoreEffectiveFeatures } from "@/lib/profiles/featureResolver";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const productInputSchema = productFormSchema;
@@ -56,7 +57,14 @@ async function assertBarcodeIsFree(
 
 export async function createProduct(input: ProductInput) {
   const parsed = productInputSchema.parse(input);
-  const { supabase, storeId } = await requireStoreContext();
+  const { supabase, storeId, role } = await requireStoreContext();
+
+  if (role !== "super_admin") {
+    const { allow_new_product } = await getStoreEffectiveFeatures(storeId);
+    if (!allow_new_product) {
+      throw new Error("Product creation is disabled on this store's profile.");
+    }
+  }
 
   await assertSkuIsFree(supabase, storeId, parsed.sku);
   await assertBarcodeIsFree(supabase, storeId, parsed.barcode);
@@ -198,7 +206,18 @@ export async function checkProductIdentifiers(input: {
  */
 export async function createProductWithVariants(input: VariantProductInput) {
   const parsed = variantProductSchema.parse(input);
-  const { supabase, storeId } = await requireStoreContext();
+  const { supabase, storeId, role } = await requireStoreContext();
+
+  // Part 4 of the spec only guards createProduct()/createCategory() against their matching
+  // flag; a variant product is still a product, so it gets the same allow_new_product check
+  // (not allow_variant_matrix — that flag exists for the Profile Matrix UI to toggle, but no
+  // spec part asked createProductWithVariants to enforce it, and every seeded profile except
+  // Lite Register already has allow_new_product on).
+  if (role !== "super_admin") {
+    const { allow_new_product } = await getStoreEffectiveFeatures(storeId);
+    if (!allow_new_product) throw new Error("Product creation is disabled on this store's profile.");
+  }
+
   const { data: userResult } = await supabase.auth.getUser();
 
   await assertSkuIsFree(supabase, storeId, parsed.sku);

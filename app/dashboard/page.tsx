@@ -8,6 +8,8 @@ import { mapSaleLineRows, type SaleLineJoinRow } from "@/lib/reports/shape";
 import { buildSalesVelocity } from "@/lib/reports/aggregate";
 import { resolveDashboardLayout } from "@/lib/dashboard/resolve-layout";
 import { HomeDashboard } from "@/components/dashboard/home/HomeDashboard";
+import { LiteLaunchpad } from "@/components/dashboard/home/LiteLaunchpad";
+import { getStoreEffectiveFeatures } from "@/lib/profiles/featureResolver";
 import type { OrderRow } from "@/lib/orders/types";
 import type { Category, Product } from "@/lib/types/domain";
 import type { ReportsSaleTouch, StockMovementRow } from "@/lib/reports/types";
@@ -45,6 +47,13 @@ export default async function DashboardPage() {
     .eq("id", storeId)
     .single();
   const timezone = store?.timezone ?? "UTC";
+
+  const features = await getStoreEffectiveFeatures(storeId);
+  // Lite Register profile: skip every analytics/report query below entirely — this branch
+  // exits before the digest, revenue-vs-COGS, dead-stock and reorder queries even run.
+  if (!features.show_dashboard) {
+    return <LiteLaunchpad storeName={store?.name ?? "Store"} features={features} />;
+  }
 
   const { from: todayFrom, to: todayTo } = getRangeBounds("today", timezone);
   const { from: weekFrom, to: weekTo } = getRangeBounds("7d", timezone);
@@ -189,6 +198,7 @@ export default async function DashboardPage() {
         layoutConfig={resolvedLayout.layoutConfig}
         themeConfig={resolvedLayout.themeConfig}
         canManageCatalog={profile?.role !== "ui_designer"}
+        features={features}
       />
     </div>
   );

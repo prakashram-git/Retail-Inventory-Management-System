@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStoreContext } from "./shared";
+import { getStoreEffectiveFeatures } from "@/lib/profiles/featureResolver";
 import { slugify } from "@/lib/utils/slug";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -49,7 +50,14 @@ async function uniqueSlug(
 
 export async function createCategory(input: CategoryInput) {
   const parsed = categoryInputSchema.parse(input);
-  const { supabase, storeId } = await requireStoreContext();
+  const { supabase, storeId, role } = await requireStoreContext();
+
+  if (role !== "super_admin") {
+    const { allow_new_category } = await getStoreEffectiveFeatures(storeId);
+    if (!allow_new_category) {
+      throw new Error("Category creation is disabled on this store's profile.");
+    }
+  }
 
   if (parsed.parent_id) {
     const { data: parent } = await supabase
