@@ -80,7 +80,11 @@ export function CategoryDialog({
           await updateCategory(category.id, input);
           toast.success("Category updated");
         } else {
-          await createCategory(input);
+          const result = await createCategory(input);
+          if (!result.success) {
+            toast.error(result.error);
+            return;
+          }
           toast.success("Category created");
         }
         onOpenChange(false);

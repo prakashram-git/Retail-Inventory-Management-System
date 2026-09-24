@@ -48,41 +48,56 @@ async function uniqueSlug(
   }
 }
 
-export async function createCategory(input: CategoryInput) {
-  const parsed = categoryInputSchema.parse(input);
-  const { supabase, storeId, role } = await requireStoreContext();
+export type ActionResult<T = undefined> =
+  | ({ success: true } & (T extends undefined ? object : T))
+  | { success: false; error: string };
 
-  if (role !== "super_admin") {
-    const { allow_new_category } = await getStoreEffectiveFeatures(storeId);
-    if (!allow_new_category) {
-      throw new Error("Category creation is disabled on this store's profile.");
+/**
+ * Returns a result object rather than throwing: a "use server" action that throws has its
+ * error `message` redacted to an opaque digest once deployed (Next.js strips it in production
+ * builds — this only surfaces on Vercel, not `next dev`, which is why it went unnoticed).
+ * Returning the message as data sidesteps that entirely. See CategoryDialog.tsx's caller.
+ */
+export async function createCategory(input: CategoryInput): Promise<ActionResult> {
+  try {
+    const parsed = categoryInputSchema.parse(input);
+    const { supabase, storeId, role } = await requireStoreContext();
+
+    if (role !== "super_admin") {
+      const { allow_new_category } = await getStoreEffectiveFeatures(storeId);
+      if (!allow_new_category) {
+        return { success: false, error: "Category creation is disabled on this store's profile." };
+      }
     }
+
+    if (parsed.parent_id) {
+      const { data: parent } = await supabase
+        .from("categories")
+        .select("id")
+        .eq("id", parsed.parent_id)
+        .eq("store_id", storeId)
+        .maybeSingle();
+      if (!parent) return { success: false, error: "Selected parent category was not found." };
+    }
+
+    const slug = await uniqueSlug(supabase, storeId, parsed.name);
+
+    const { error } = await supabase.from("categories").insert({
+      store_id: storeId,
+      parent_id: parsed.parent_id,
+      name: parsed.name,
+      slug,
+      icon: parsed.icon,
+      default_min_threshold: parsed.default_min_threshold,
+      is_tax_exempt: parsed.is_tax_exempt,
+    });
+
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/dashboard/categories");
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Something went wrong" };
   }
-
-  if (parsed.parent_id) {
-    const { data: parent } = await supabase
-      .from("categories")
-      .select("id")
-      .eq("id", parsed.parent_id)
-      .eq("store_id", storeId)
-      .maybeSingle();
-    if (!parent) throw new Error("Selected parent category was not found.");
-  }
-
-  const slug = await uniqueSlug(supabase, storeId, parsed.name);
-
-  const { error } = await supabase.from("categories").insert({
-    store_id: storeId,
-    parent_id: parsed.parent_id,
-    name: parsed.name,
-    slug,
-    icon: parsed.icon,
-    default_min_threshold: parsed.default_min_threshold,
-    is_tax_exempt: parsed.is_tax_exempt,
-  });
-
-  if (error) throw new Error(error.message);
-  revalidatePath("/dashboard/categories");
 }
 
 export async function updateCategory(id: string, input: CategoryInput) {

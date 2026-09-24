@@ -240,6 +240,10 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
               variant_attributes: r.attributes,
             })),
           });
+          if (!result.success) {
+            toast.error(result.error);
+            return;
+          }
           toast.success(`Created ${result.variantCount} variants`);
           onOpenChange(false);
           return;
@@ -248,7 +252,11 @@ export function ProductSheet({ open, onOpenChange, product, categories }: Produc
           await updateProduct(product.id, values);
           toast.success("Product updated");
         } else {
-          await createProduct(values);
+          const result = await createProduct(values);
+          if (!result.success) {
+            toast.error(result.error);
+            return;
+          }
           toast.success("Product created");
         }
         onOpenChange(false);

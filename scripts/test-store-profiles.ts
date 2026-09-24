@@ -118,12 +118,13 @@ async function main() {
       const createTcProfProduct = async () => {
         await page.goto(`${BASE_URL}/dashboard/inventory`, { waitUntil: "networkidle" });
         await page.getByRole("button", { name: /New product/ }).first().click();
-        await page.locator("#product-name").waitFor();
+        await page.locator("#product-name").waitFor({ timeout: 15000 });
         await page.getByTestId("sku-mode-manual").click();
         await page.locator("#product-name").fill(`TC-PROF ${suffix}`);
         await page.locator("#product-sku").fill(`TCPROF-${suffix}`);
         await page.getByRole("button", { name: "Create product" }).click();
-        await page.waitForTimeout(1500);
+        // Cold serverless functions can take several seconds for the action round-trip.
+        await page.locator("[data-sonner-toast]").first().waitFor({ timeout: 20000 }).catch(() => {});
         return page.locator("[data-sonner-toast]").allTextContents();
       };
 

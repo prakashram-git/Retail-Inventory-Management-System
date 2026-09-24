@@ -55,62 +55,77 @@ async function assertBarcodeIsFree(
   }
 }
 
-export async function createProduct(input: ProductInput) {
-  const parsed = productInputSchema.parse(input);
-  const { supabase, storeId, role } = await requireStoreContext();
+export type ActionResult<T = undefined> =
+  | ({ success: true } & (T extends undefined ? object : T))
+  | { success: false; error: string };
 
-  if (role !== "super_admin") {
-    const { allow_new_product } = await getStoreEffectiveFeatures(storeId);
-    if (!allow_new_product) {
-      throw new Error("Product creation is disabled on this store's profile.");
+/**
+ * Returns a result object rather than throwing: a "use server" action that throws has its
+ * error `message` redacted to an opaque digest once deployed (Next.js strips it in production
+ * builds — this only surfaces on Vercel, not `next dev`, which is why it went unnoticed).
+ * Returning the message as data sidesteps that entirely. See ProductSheet.tsx's caller.
+ */
+export async function createProduct(input: ProductInput): Promise<ActionResult<{ id: string }>> {
+  try {
+    const parsed = productInputSchema.parse(input);
+    const { supabase, storeId, role } = await requireStoreContext();
+
+    if (role !== "super_admin") {
+      const { allow_new_product } = await getStoreEffectiveFeatures(storeId);
+      if (!allow_new_product) {
+        return { success: false, error: "Product creation is disabled on this store's profile." };
+      }
     }
+
+    await assertSkuIsFree(supabase, storeId, parsed.sku);
+    await assertBarcodeIsFree(supabase, storeId, parsed.barcode);
+
+    const { data: userResult } = await supabase.auth.getUser();
+
+    const { data: product, error } = await supabase
+      .from("products")
+      .insert({
+        store_id: storeId,
+        category_id: parsed.category_id,
+        sku: parsed.sku,
+        barcode: parsed.barcode,
+        name: parsed.name,
+        description: parsed.description,
+        tags: parsed.tags,
+        cost_price: parsed.cost_price,
+        retail_price: parsed.retail_price,
+        current_stock: parsed.current_stock,
+        min_threshold: parsed.min_threshold,
+        image_url: parsed.image_url,
+        is_active: parsed.is_active,
+      })
+      .select("id")
+      .single();
+
+    if (error) return { success: false, error: error.message };
+
+    // A non-zero starting stock is a receiving event, same as any other
+    // restock — it needs the same audit trail so "how did this product get
+    // its stock" is always answerable from inventory_logs alone.
+    if (parsed.current_stock > 0) {
+      const { error: logError } = await supabase.from("inventory_logs").insert({
+        store_id: storeId,
+        product_id: product.id,
+        change_type: "restock",
+        quantity: parsed.current_stock,
+        previous_stock: 0,
+        new_stock: parsed.current_stock,
+        notes: "Initial stock on product creation",
+        created_by: userResult.user?.id,
+      });
+      if (logError) return { success: false, error: logError.message };
+    }
+
+    revalidatePath("/dashboard/inventory");
+    return { success: true, id: product.id };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : "Something went wrong" };
   }
-
-  await assertSkuIsFree(supabase, storeId, parsed.sku);
-  await assertBarcodeIsFree(supabase, storeId, parsed.barcode);
-
-  const { data: userResult } = await supabase.auth.getUser();
-
-  const { data: product, error } = await supabase
-    .from("products")
-    .insert({
-      store_id: storeId,
-      category_id: parsed.category_id,
-      sku: parsed.sku,
-      barcode: parsed.barcode,
-      name: parsed.name,
-      description: parsed.description,
-      tags: parsed.tags,
-      cost_price: parsed.cost_price,
-      retail_price: parsed.retail_price,
-      current_stock: parsed.current_stock,
-      min_threshold: parsed.min_threshold,
-      image_url: parsed.image_url,
-      is_active: parsed.is_active,
-    })
-    .select("id")
-    .single();
-
-  if (error) throw new Error(error.message);
-
-  // A non-zero starting stock is a receiving event, same as any other
-  // restock — it needs the same audit trail so "how did this product get
-  // its stock" is always answerable from inventory_logs alone.
-  if (parsed.current_stock > 0) {
-    const { error: logError } = await supabase.from("inventory_logs").insert({
-      store_id: storeId,
-      product_id: product.id,
-      change_type: "restock",
-      quantity: parsed.current_stock,
-      previous_stock: 0,
-      new_stock: parsed.current_stock,
-      notes: "Initial stock on product creation",
-      created_by: userResult.user?.id,
-    });
-    if (logError) throw new Error(logError.message);
-  }
-
-  revalidatePath("/dashboard/inventory");
 }
 
 export async function updateProduct(id: string, input: ProductInput) {
@@ -204,7 +219,10 @@ export async function checkProductIdentifiers(input: {
  * REST client has no multi-statement transaction, so a failure part-way removes what this call
  * created; the case-insensitive SKU and barcode indexes are the guarantee against duplicates.
  */
-export async function createProductWithVariants(input: VariantProductInput) {
+export async function createProductWithVariants(
+  input: VariantProductInput
+): Promise<ActionResult<{ parentId: string; variantCount: number }>> {
+ try {
   const parsed = variantProductSchema.parse(input);
   const { supabase, storeId, role } = await requireStoreContext();
 
@@ -215,7 +233,7 @@ export async function createProductWithVariants(input: VariantProductInput) {
   // Lite Register already has allow_new_product on).
   if (role !== "super_admin") {
     const { allow_new_product } = await getStoreEffectiveFeatures(storeId);
-    if (!allow_new_product) throw new Error("Product creation is disabled on this store's profile.");
+    if (!allow_new_product) return { success: false, error: "Product creation is disabled on this store's profile." };
   }
 
   const { data: userResult } = await supabase.auth.getUser();
@@ -246,7 +264,7 @@ export async function createProductWithVariants(input: VariantProductInput) {
     })
     .select("id")
     .single();
-  if (parentError) throw new Error(friendlyInsertError(parentError));
+  if (parentError) return { success: false, error: friendlyInsertError(parentError) };
 
   const { data: children, error: childError } = await supabase
     .from("products")
@@ -273,7 +291,7 @@ export async function createProductWithVariants(input: VariantProductInput) {
 
   if (childError || !children) {
     await supabase.from("products").delete().eq("id", parent.id);
-    throw new Error(friendlyInsertError(childError));
+    return { success: false, error: friendlyInsertError(childError) };
   }
 
   const logs = children
@@ -290,11 +308,14 @@ export async function createProductWithVariants(input: VariantProductInput) {
     }));
   if (logs.length > 0) {
     const { error: logError } = await supabase.from("inventory_logs").insert(logs);
-    if (logError) throw new Error(logError.message);
+    if (logError) return { success: false, error: logError.message };
   }
 
   revalidatePath("/dashboard/inventory");
-  return { parentId: parent.id, variantCount: children.length };
+  return { success: true, parentId: parent.id, variantCount: children.length };
+ } catch (err) {
+  return { success: false, error: err instanceof Error ? err.message : "Something went wrong" };
+ }
 }
 
 function friendlyInsertError(error: { code?: string; message: string } | null): string {
