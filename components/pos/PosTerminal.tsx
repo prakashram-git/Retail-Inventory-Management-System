@@ -22,6 +22,8 @@ import { CartPanel } from "./CartPanel";
 import { MobileCartBar } from "./MobileCartBar";
 import { CheckoutModal } from "./CheckoutModal";
 import { SisterStoreModal } from "./SisterStoreModal";
+import { HelpButton } from "@/components/help/HelpButton";
+import { useHelp } from "@/components/help/HelpProvider";
 import { OpenRegisterDialog } from "./OpenRegisterDialog";
 import { CloseShiftModal } from "./CloseShiftModal";
 import { TerminalLock } from "./TerminalLock";
@@ -75,6 +77,27 @@ export function PosTerminal({
   const [accountOpen, setAccountOpen] = useState(false);
   const [session, setSession] = useState<CashDrawerSession | null | "loading">("loading");
   const [justClosedShift, setJustClosedShift] = useState(false);
+
+  // Training sandbox: snapshot the real catalog stock and register session when
+  // it turns on, and restore them when it turns off, so practice sales (which
+  // only decrement local state) never leave a trace.
+  const { trainingMode } = useHelp();
+  const [prevTraining, setPrevTraining] = useState(false);
+  const [trainingSnapshot, setTrainingSnapshot] = useState<{
+    products: PosProduct[];
+    session: CashDrawerSession | null | "loading";
+  } | null>(null);
+  if (trainingMode !== prevTraining) {
+    setPrevTraining(trainingMode);
+    if (trainingMode) {
+      setTrainingSnapshot({ products, session });
+    } else if (trainingSnapshot) {
+      setProducts(trainingSnapshot.products);
+      setSession(trainingSnapshot.session);
+      setCart([]);
+      setTrainingSnapshot(null);
+    }
+  }
 
   useEffect(() => {
     getOpenSession(storeId, cashierId)
@@ -169,7 +192,8 @@ export function PosTerminal({
       })
     );
     setCart([]);
-    if (isOnline) router.refresh();
+    // Training sales never touched the server, so there is nothing to refresh.
+    if (isOnline && !trainingMode) router.refresh();
   }
 
   async function handleSignOut() {
@@ -189,6 +213,15 @@ export function PosTerminal({
 
   return (
     <div className="flex h-dvh flex-col">
+      {trainingMode && (
+        <div
+          role="status"
+          data-testid="training-banner"
+          className="bg-amber-500 px-3 py-1 text-center text-xs font-semibold text-black"
+        >
+          TRAINING MODE — practice only. Sales, stock and till sessions are not saved.
+        </div>
+      )}
       <header className="flex h-14 shrink-0 items-center justify-between border-b bg-background px-3">
         <div className="flex flex-col leading-tight">
           <span className="text-sm font-semibold">{storeName}</span>
@@ -212,13 +245,15 @@ export function PosTerminal({
               variant="outline"
               size="sm"
               className="touch-target gap-1.5"
+              data-tour="pos-close-shift"
               onClick={handleCloseShiftRequest}
             >
               <Receipt className="h-4 w-4" />
               <span className="hidden sm:inline">Close Shift / Z-Report</span>
             </Button>
           )}
-          <ConnectionBadge />
+          <span data-tour="pos-connection"><ConnectionBadge /></span>
+          <HelpButton />
           <ThemeToggle />
           <Button
             variant="ghost"

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SyncProvider } from "@/components/providers/SyncProvider";
+import { HelpProvider } from "@/components/help/HelpProvider";
 import { StoreProvider } from "@/components/providers/StoreProvider";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
 import type { Store } from "@/lib/types/domain";
@@ -56,7 +57,7 @@ export default async function PosLayout({ children }: { children: React.ReactNod
   return (
     <SyncProvider>
       <StoreProvider role={profile.role} activeStore={activeStore} stores={stores}>
-        {children}
+        <HelpProvider role={profile.role}>{children}</HelpProvider>
       </StoreProvider>
     </SyncProvider>
   );

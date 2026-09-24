@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { LogOut } from "lucide-react";
 import { openSession, type CashDrawerSession } from "@/lib/pos/session";
 import { logout } from "@/lib/actions/auth";
+import { useHelp } from "@/components/help/HelpProvider";
 import {
   Dialog,
   DialogContent,
@@ -35,8 +36,15 @@ export function OpenRegisterDialog({
   const [openingFloat, setOpeningFloat] = useState("0");
   const [isPending, startTransition] = useTransition();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { trainingMode } = useHelp();
 
   function submit() {
+    if (trainingMode) {
+      // Local-only session: never written to cash_drawer_sessions.
+      toast.info("Training mode — register opened locally, nothing saved");
+      onOpened({ id: "training-session", opening_float: Number(openingFloat) || 0, opened_at: new Date().toISOString() });
+      return;
+    }
     startTransition(async () => {
       try {
         const session = await openSession(storeId, cashierId, Number(openingFloat) || 0);
@@ -67,7 +75,7 @@ export function OpenRegisterDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5" data-tour="pos-open-float">
           <Label htmlFor="opening-float">Opening float</Label>
           <Input
             id="opening-float"
@@ -83,7 +91,7 @@ export function OpenRegisterDialog({
         </div>
 
         <DialogFooter className="flex-col gap-2 sm:flex-col">
-          <Button onClick={submit} disabled={isPending || isLoggingOut} className="w-full">
+          <Button onClick={submit} disabled={isPending || isLoggingOut} className="w-full" data-tour="pos-open-submit">
             {isPending ? "Opening..." : "Open register"}
           </Button>
           <Button

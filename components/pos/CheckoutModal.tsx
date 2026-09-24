@@ -7,6 +7,7 @@ import { useStore } from "@/components/providers/StoreProvider";
 import { useSync } from "@/components/providers/SyncProvider";
 import { getQuickTenderDenominations } from "@/lib/utils/currency";
 import { submitCheckout } from "@/lib/pos/checkout";
+import { useHelp } from "@/components/help/HelpProvider";
 import type { CartTotals } from "@/lib/pos/pricing";
 import type { CartLine, PaymentMethod } from "@/lib/pos/types";
 import {
@@ -66,6 +67,7 @@ export function CheckoutModal({
 }: CheckoutModalProps) {
   const { formatPrice, currency } = useStore();
   const { isOnline } = useSync();
+  const { trainingMode } = useHelp();
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
   const [amountTendered, setAmountTendered] = useState("0");
   const [authCode, setAuthCode] = useState("");
@@ -126,6 +128,7 @@ export function CheckoutModal({
           cardBrand: paymentMethod === "card" ? cardBrand : null,
           cardLastFour: paymentMethod === "card" ? cardLastFour : null,
           isOnline,
+          is_training_mode: trainingMode,
         });
 
         setCompleted({
@@ -137,7 +140,13 @@ export function CheckoutModal({
           cart,
           totals,
         });
-        toast.success(result.offline ? "Sale queued offline" : "Sale complete");
+        toast.success(
+          trainingMode
+            ? "Training sale complete — nothing was saved"
+            : result.offline
+              ? "Sale queued offline"
+              : "Sale complete"
+        );
         onSuccess();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : "Checkout failed");
@@ -159,7 +168,7 @@ export function CheckoutModal({
             </DialogHeader>
 
             <div className="flex flex-col gap-4">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2" data-tour="checkout-payment">
                 {PAYMENT_METHODS.map((method) => (
                   <button
                     key={method.value}
@@ -286,7 +295,7 @@ export function CheckoutModal({
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
                 Cancel
               </Button>
-              <Button onClick={submit} disabled={isPending || !canSubmit}>
+              <Button onClick={submit} disabled={isPending || !canSubmit} data-tour="checkout-submit">
                 {isPending ? "Processing..." : "Complete sale"}
               </Button>
             </DialogFooter>

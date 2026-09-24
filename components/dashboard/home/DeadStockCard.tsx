@@ -19,7 +19,7 @@ export function DeadStockCard({ rows, className, style }: DeadStockCardProps) {
   const topRows = rows.slice(0, 6);
 
   return (
-    <Card size="sm" className={cn("flex flex-col transition-shadow hover:shadow-md", className)} style={style}>
+    <Card size="sm" data-tour="dash-dead-stock" className={cn("flex flex-col transition-shadow hover:shadow-md", className)} style={style}>
       <CardHeader>
         <CardTitle>Dead stock monitor</CardTitle>
         <CardDescription>No sale in 45+ days, ranked by cost tied up</CardDescription>

@@ -169,7 +169,7 @@ export function LayoutBuilder({
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-4">
-          <Card size="sm">
+          <Card size="sm" data-tour="layout-widget-list">
             <CardHeader>
               <CardTitle>Widgets</CardTitle>
               <CardDescription>Drag the handle to reorder. Order flows left-to-right, top-to-bottom.</CardDescription>
@@ -263,7 +263,7 @@ export function LayoutBuilder({
         </div>
 
         <div className="flex flex-col gap-4">
-          <Card size="sm">
+          <Card size="sm" data-tour="layout-theme">
             <CardHeader>
               <CardTitle>Theme</CardTitle>
               {isCustom && <CardDescription>A custom layout is currently published.</CardDescription>}
@@ -350,7 +350,7 @@ export function LayoutBuilder({
           )}
 
           <div className="flex flex-col gap-2">
-            <Button onClick={handlePublish} disabled={isPending}>
+            <Button onClick={handlePublish} disabled={isPending} data-tour="layout-publish">
               <Rocket />
               {isPending ? "Publishing..." : "Publish changes"}
             </Button>

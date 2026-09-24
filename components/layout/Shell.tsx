@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { SyncProvider } from "@/components/providers/SyncProvider";
 import { StoreProvider } from "@/components/providers/StoreProvider";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
+import { HelpProvider } from "@/components/help/HelpProvider";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { MobileBottomNav } from "./MobileBottomNav";
@@ -75,6 +76,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
   return (
     <SyncProvider>
       <StoreProvider role={profile.role} activeStore={activeStore} stores={stores}>
+        <HelpProvider role={profile.role}>
         <div className="flex h-dvh flex-col">
           <Header role={profile.role} />
           <div className="flex min-h-0 min-w-0 flex-1">
@@ -88,6 +90,7 @@ export async function Shell({ children }: { children: React.ReactNode }) {
           </div>
           <MobileBottomNav role={profile.role} />
         </div>
+        </HelpProvider>
       </StoreProvider>
     </SyncProvider>
   );

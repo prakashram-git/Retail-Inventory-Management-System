@@ -31,7 +31,7 @@ export function CartPanel({
   const { formatPrice } = useStore();
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-tour="pos-cart">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <h2 className="flex items-center gap-2 font-semibold">
           <ShoppingCart className="size-4" />
@@ -123,6 +123,7 @@ export function CartPanel({
 
         <Button
           size="lg"
+          data-tour="pos-charge-btn"
           className="mt-2 touch-target"
           disabled={cart.length === 0 || checkoutDisabled}
           onClick={onCheckout}

@@ -153,7 +153,7 @@ export function OrderDetailSheet({ order, onOpenChange, currentUserId }: OrderDe
 
           <SheetFooter>
             {canReturn && (
-              <Button className="w-full" variant="outline" onClick={() => setReturnModalOpen(true)}>
+              <Button className="w-full" variant="outline" data-tour="orders-return-btn" onClick={() => setReturnModalOpen(true)}>
                 <Undo2 />
                 Process return
               </Button>

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Printer, CheckCircle2 } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
+import { useHelp } from "@/components/help/HelpProvider";
 import { closeSession, getSessionSalesReport, type SessionSalesReport } from "@/lib/pos/session";
 import type { CashDrawerSession } from "@/lib/pos/session";
 import {
@@ -37,6 +38,7 @@ export function CloseShiftModal({
   onClosed,
 }: CloseShiftModalProps) {
   const { formatPrice } = useStore();
+  const { trainingMode } = useHelp();
   const [countedCash, setCountedCash] = useState("");
   const [notes, setNotes] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -49,6 +51,11 @@ export function CloseShiftModal({
   } | null>(null);
 
   function submit() {
+    if (trainingMode) {
+      toast.info("Training mode — shift not closed, nothing saved");
+      onOpenChange(false);
+      return;
+    }
     const counted = Number(countedCash);
     if (!Number.isFinite(counted) || counted < 0) {
       toast.error("Enter the physically counted cash amount.");
@@ -98,7 +105,7 @@ export function CloseShiftModal({
 
             <div className="flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="counted-cash">Physical cash count</Label>
+                <Label htmlFor="counted-cash" data-tour="close-counted-cash">Physical cash count</Label>
                 <Input
                   id="counted-cash"
                   type="number"
@@ -128,7 +135,7 @@ export function CloseShiftModal({
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
                 Cancel
               </Button>
-              <Button onClick={submit} disabled={isPending || countedCash.trim() === ""}>
+              <Button onClick={submit} disabled={isPending || countedCash.trim() === ""} data-tour="close-submit">
                 {isPending ? "Closing..." : "Close shift"}
               </Button>
             </DialogFooter>

@@ -33,10 +33,30 @@ export interface OfflineCategory {
   slug: string;
 }
 
+export interface OfflineHelpWorkflow {
+  id: string;
+  /** Role the payload was fetched for — a role change invalidates the cache. */
+  cached_for_role: string;
+  category_id: string;
+  category_title: string;
+  title: string;
+  summary: string;
+  allowed_roles: string[];
+  target_route: string | null;
+  estimated_time_min: number;
+  version: string;
+  drift_detected: boolean;
+  steps: unknown[];
+  /** step_number -> Base64/SVG fallback illustration data URI (desktop). */
+  illustrations: Record<number, string>;
+  cached_at: string;
+}
+
 const db = new Dexie("MallRetailOfflineDB") as Dexie & {
   cached_products: EntityTable<CachedProduct, "id">;
   offline_orders_queue: EntityTable<OfflineOrderQueueEntry, "idempotency_key">;
   offline_categories: EntityTable<OfflineCategory, "id">;
+  offline_help_workflows: EntityTable<OfflineHelpWorkflow, "id">;
 };
 
 db.version(1).stores({
@@ -45,6 +65,10 @@ db.version(1).stores({
   offline_orders_queue:
     "idempotency_key, store_id, cashier_id, session_id, payload, created_at, sync_status, retry_count, last_error",
   offline_categories: "id, store_id, name, slug",
+});
+
+db.version(2).stores({
+  offline_help_workflows: "id, category_id, cached_for_role, version, cached_at",
 });
 
 export { db };

@@ -11,13 +11,18 @@
     "backup:test": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-backup-engine.ts",
     "test:layout-role": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-layout-role.ts",
     "test:analytics": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-analytics-suite.ts",
-    "test:reporting": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-reporting-suite.ts"
+    "test:reporting": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-reporting-suite.ts",
+    "help:seed": "tsx scripts/seed-help-content.ts",
+    "help:check-drift": "tsx scripts/check-help-drift.ts",
+    "help:refresh-assets": "tsx scripts/capture-workflow-screenshots.ts",
+    "test:help": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-help-suite.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
+    "@floating-ui/react": "^0.27.20",
     "@hookform/resolvers": "^5.9.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.0",
@@ -39,6 +44,7 @@
     "recharts": "^3.10.1",
     "server-only": "^0.0.1",
     "shadcn": "^4.21.0",
+    "sharp": "^0.35.4",
     "sonner": "^2.0.8",
     "tar": "^7.5.22",
     "tw-animate-css": "^1.4.0",
@@ -56,6 +62,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "pg": "^8.23.0",
+    "playwright": "^1.63.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"

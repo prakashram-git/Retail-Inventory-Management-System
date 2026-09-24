@@ -17,6 +17,8 @@ export interface CheckoutParams {
   cardBrand?: string | null;
   cardLastFour?: string | null;
   isOnline: boolean;
+  /** Training sandbox: short-circuit before any RPC, queue write or stock change. */
+  is_training_mode?: boolean;
 }
 
 export interface CheckoutResult {
@@ -32,6 +34,14 @@ export interface CheckoutResult {
  * idempotency key guards against double-charging either way.
  */
 export async function submitCheckout(params: CheckoutParams): Promise<CheckoutResult> {
+  if (params.is_training_mode) {
+    return {
+      idempotencyKey: params.idempotencyKey,
+      invoiceNumber: `TRAINING-${params.idempotencyKey.slice(0, 6).toUpperCase()}`,
+      offline: false,
+    };
+  }
+
   const items = params.cart.map((line) => ({
     product_id: line.product.id,
     quantity: line.quantity,

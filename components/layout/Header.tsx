@@ -4,6 +4,7 @@ import { logout } from "@/lib/actions/auth";
 import { StoreSwitcher } from "./StoreSwitcher";
 import { ConnectionBadge } from "./ConnectionBadge";
 import { ThemeToggle } from "./ThemeToggle";
+import { HelpButton } from "@/components/help/HelpButton";
 import { Button } from "@/components/ui/button";
 import type { UserRole } from "@/lib/types/domain";
 
@@ -19,6 +20,7 @@ export function Header({ role }: { role: UserRole }) {
             variant="outline"
             size="sm"
             className="hidden sm:flex"
+            data-tour="header-customize-layout"
             nativeButton={false}
             render={<Link href="/dashboard/settings/layout-builder" />}
           >
@@ -27,6 +29,7 @@ export function Header({ role }: { role: UserRole }) {
           </Button>
         )}
         <ConnectionBadge />
+        <HelpButton />
         <ThemeToggle />
         <form action={logout} className="md:hidden">
           <button

@@ -41,7 +41,7 @@ export function CatalogGrid({ products, categories, onAdd, onInspectSisterStores
   return (
     <div className="flex h-full flex-col gap-3">
       <div className="flex flex-col gap-2">
-        <InputGroup>
+        <InputGroup data-tour="pos-search">
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>

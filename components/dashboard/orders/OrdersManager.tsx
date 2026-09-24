@@ -146,7 +146,7 @@ export function OrdersManager({ orders, range, currentUserId }: OrdersManagerPro
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border">
-          <Table>
+          <Table data-tour="orders-table">
             <TableHeader>
               <TableRow>
                 <TableHead>Invoice</TableHead>

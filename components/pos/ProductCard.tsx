@@ -20,6 +20,7 @@ export function ProductCard({ product, onAdd, onInspectSisterStores }: ProductCa
   return (
     <Card
       size="sm"
+      data-tour="pos-product-card"
       className="relative overflow-hidden p-0"
     >
       <button
@@ -62,6 +63,7 @@ export function ProductCard({ product, onAdd, onInspectSisterStores }: ProductCa
             type="button"
             variant="outline"
             size="sm"
+            data-tour="pos-sister-store-btn"
             onClick={(e) => {
               e.stopPropagation();
               onInspectSisterStores();
