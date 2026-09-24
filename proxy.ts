@@ -19,6 +19,10 @@ const UI_DESIGNER_ALLOWED_PATHS = [
  * Supabase session on every request and enforce role-based redirects.
  */
 export async function proxy(request: NextRequest) {
+  // Cron endpoints authenticate themselves with a Bearer CRON_SECRET; there is
+  // no user session to check, so redirecting them to /login would break them.
+  if (request.nextUrl.pathname.startsWith("/api/cron/")) return NextResponse.next();
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
