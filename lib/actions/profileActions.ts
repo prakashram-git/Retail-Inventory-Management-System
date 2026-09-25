@@ -15,7 +15,12 @@ function pickFeatures(input: Record<string, boolean>): Record<string, boolean> {
   return out;
 }
 
-/** Points a store at a profile, optionally with its own per-store overrides on top. */
+/**
+ * Points a store at a profile. `overrides`, when passed, REPLACES the store's per-store
+ * overrides with exactly that set (an explicit `{}` clears them); when omitted, existing
+ * overrides are left untouched — switching a store from the Store Assignment dropdown must
+ * not silently discard customizations someone already made for it.
+ */
 export async function assignStoreProfileAction(
   storeId: string,
   profileId: string,
@@ -30,13 +35,12 @@ export async function assignStoreProfileAction(
     .maybeSingle();
   if (!profileExists) return { success: false, error: `Unknown profile "${profileId}".` };
 
-  const { error } = await supabase
-    .from("stores")
-    .update({
-      active_profile_id: profileId,
-      custom_feature_overrides: overrides ? pickFeatures(overrides) : {},
-    })
-    .eq("id", storeId);
+  const patch: { active_profile_id: string; custom_feature_overrides?: Record<string, boolean> } = {
+    active_profile_id: profileId,
+  };
+  if (overrides !== undefined) patch.custom_feature_overrides = pickFeatures(overrides);
+
+  const { error } = await supabase.from("stores").update(patch).eq("id", storeId);
   if (error) return { success: false, error: error.message };
 
   revalidatePath("/dashboard");
@@ -51,6 +55,13 @@ export async function updateProfileDefinitionAction(
   features: Record<string, boolean>
 ): Promise<ActionResult> {
   const { supabase } = await requireSuperAdmin();
+
+  const { data: existing } = await supabase
+    .from("store_profiles")
+    .select("id")
+    .eq("id", profileId)
+    .maybeSingle();
+  if (!existing) return { success: false, error: `Unknown profile "${profileId}".` };
 
   const { error } = await supabase
     .from("store_profiles")

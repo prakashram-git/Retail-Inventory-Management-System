@@ -9,6 +9,7 @@ const FALLBACK: Omit<StoreFeatures, "meta"> = {
   allow_pos_shortcut: true,
   allow_reports_shortcut: true,
   allow_variant_matrix: true,
+  allow_executive_widgets: true,
   high_performance_mode: false,
 };
 
