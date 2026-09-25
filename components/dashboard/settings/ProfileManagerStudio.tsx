@@ -20,9 +20,12 @@ import {
   type StoreAssignmentRow,
 } from "@/lib/actions/profileActions";
 import {
+  EXECUTIVE_KPI_IDS,
+  EXECUTIVE_KPI_LABELS,
   EXECUTIVE_WIDGET_IDS,
   FEATURE_KEYS,
   FEATURE_LABELS,
+  executiveKpiFeatureKey,
   executiveWidgetFeatureKey,
   type StoreProfileDefinition,
 } from "@/lib/profiles/types";
@@ -180,6 +183,58 @@ export function ProfileManagerStudio({
                                 onCheckedChange={(v) => toggleFeature(p.id, featureKey, v === true)}
                                 aria-label={`${label} for ${p.name}`}
                                 data-testid={`exec-widget-${p.id}-${widgetId}`}
+                              />
+                              {savingKey === id && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Executive Digest KPI Selection</CardTitle>
+            <CardDescription>
+              Pick which figures show inside the Executive Digest&apos;s Flash Daily / Last 30 Days
+              view. Also gated by &ldquo;Show executive widgets&rdquo; above.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full min-w-[36rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="py-2 pr-3 font-medium">KPI</th>
+                  {profiles.map((p) => (
+                    <th key={p.id} className="px-3 py-2 text-center font-medium">
+                      {p.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {EXECUTIVE_KPI_IDS.map((kpiId) => {
+                  const featureKey = executiveKpiFeatureKey(kpiId);
+                  const label = EXECUTIVE_KPI_LABELS[kpiId];
+                  return (
+                    <tr key={kpiId} className="border-b last:border-0">
+                      <td className="py-2 pr-3 text-muted-foreground">{label}</td>
+                      {profiles.map((p) => {
+                        const id = `${p.id}:${featureKey}`;
+                        const checked = p.features[featureKey] !== false;
+                        return (
+                          <td key={p.id} className="px-3 py-2 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => toggleFeature(p.id, featureKey, v === true)}
+                                aria-label={`${label} for ${p.name}`}
+                                data-testid={`exec-kpi-${p.id}-${kpiId}`}
                               />
                               {savingKey === id && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
                             </div>

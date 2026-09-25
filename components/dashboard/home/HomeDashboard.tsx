@@ -167,7 +167,7 @@ export function HomeDashboard({
       <RecentOrdersCard orders={recentOrders} className={widgetClassName} style={widgetStyle} />
     ),
     widget_dead_stock: <DeadStockCard rows={deadStock} className={widgetClassName} style={widgetStyle} />,
-    widget_executive_digest: <ExecutiveDigest className={widgetClassName} style={widgetStyle} />,
+    widget_executive_digest: <ExecutiveDigest className={widgetClassName} style={widgetStyle} features={features} />,
     widget_cashier_leaderboard: <CashierScorecard className={widgetClassName} style={widgetStyle} />,
     widget_dead_stock_aging: <DeadStockAgingCard className={widgetClassName} style={widgetStyle} />,
     widget_hourly_heatmap: <HourlySalesHeatmap className={widgetClassName} style={widgetStyle} />,

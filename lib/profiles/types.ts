@@ -59,6 +59,13 @@ export const EXECUTIVE_WIDGET_IDS = [
   "widget_hourly_heatmap",
   "widget_sell_through",
   "widget_pinned_report",
+  // The four standalone financial metric tiles are grouped in here too — same reasoning as
+  // the BI widgets above (sensitive-enough figures that a profile may want to hide) and it
+  // means they get the same master switch + per-item picker for free.
+  "metric_gross_revenue",
+  "metric_net_profit",
+  "metric_aov",
+  "metric_shrinkage",
 ] as const;
 
 /** The `features` jsonb key that selects one executive widget in or out of a profile. */
@@ -76,6 +83,44 @@ export function executiveWidgetFeatureKey(widgetId: string): string {
 export function isExecutiveWidgetEnabled(features: Pick<StoreFeatures, "allow_executive_widgets" | "raw">, widgetId: string): boolean {
   if (!features.allow_executive_widgets) return false;
   return features.raw[executiveWidgetFeatureKey(widgetId)] !== false;
+}
+
+/**
+ * The 8 KPI cards inside the Executive Digest widget's Flash Daily / Last 30 Days view
+ * (Gross sales, Net sales, UPT, AOV, Discount leakage, Total margin loss, Gross profit, Gross
+ * margin) aren't separate dashboard widgets, so they need their own id list and feature-key
+ * namespace, one level below `widget_executive_digest` itself.
+ */
+export const EXECUTIVE_KPI_IDS = [
+  "kpi_gross_sales",
+  "kpi_net_sales",
+  "kpi_upt",
+  "kpi_aov",
+  "kpi_discount_leakage",
+  "kpi_margin_loss",
+  "kpi_gross_profit",
+  "kpi_gross_margin",
+] as const;
+
+export const EXECUTIVE_KPI_LABELS: Record<(typeof EXECUTIVE_KPI_IDS)[number], string> = {
+  kpi_gross_sales: "Gross sales",
+  kpi_net_sales: "Net sales",
+  kpi_upt: "UPT",
+  kpi_aov: "AOV",
+  kpi_discount_leakage: "Discount leakage",
+  kpi_margin_loss: "Total margin loss (discount)",
+  kpi_gross_profit: "Gross profit",
+  kpi_gross_margin: "Gross margin",
+};
+
+export function executiveKpiFeatureKey(kpiId: string): string {
+  return `exec_kpi_${kpiId}`;
+}
+
+/** Same rule as isExecutiveWidgetEnabled: gated by the master switch, unset defaults to on. */
+export function isExecutiveKpiEnabled(features: Pick<StoreFeatures, "allow_executive_widgets" | "raw">, kpiId: string): boolean {
+  if (!features.allow_executive_widgets) return false;
+  return features.raw[executiveKpiFeatureKey(kpiId)] !== false;
 }
 
 export interface StoreProfileDefinition {

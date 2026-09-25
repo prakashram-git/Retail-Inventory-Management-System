@@ -3,8 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "./shared";
 import {
+  EXECUTIVE_KPI_IDS,
   EXECUTIVE_WIDGET_IDS,
   FEATURE_KEYS,
+  executiveKpiFeatureKey,
   executiveWidgetFeatureKey,
   type StoreProfileDefinition,
 } from "@/lib/profiles/types";
@@ -16,7 +18,11 @@ interface ActionResult {
 
 // The fixed feature toggles plus one per executive widget (exec_widget_<id>) — anything else
 // in the input is dropped rather than saved, so a stray/typo'd key can't silently persist.
-const KNOWN_KEYS = new Set<string>([...FEATURE_KEYS, ...EXECUTIVE_WIDGET_IDS.map(executiveWidgetFeatureKey)]);
+const KNOWN_KEYS = new Set<string>([
+  ...FEATURE_KEYS,
+  ...EXECUTIVE_WIDGET_IDS.map(executiveWidgetFeatureKey),
+  ...EXECUTIVE_KPI_IDS.map(executiveKpiFeatureKey),
+]);
 
 function pickFeatures(input: Record<string, boolean>): Record<string, boolean> {
   const out: Record<string, boolean> = {};

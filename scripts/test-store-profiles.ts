@@ -211,6 +211,34 @@ async function main() {
       `before: digest=${d2Result.bothShownByDefault.digest > 0}, leaderboard=${d2Result.bothShownByDefault.leaderboard > 0}; after disabling only the leaderboard widget: digest still shown=${d2Result.afterTurningOffOne.digest > 0}, leaderboard gone=${d2Result.afterTurningOffOne.leaderboard === 0}`
     );
 
+    // Test D3: an individual KPI card inside the Executive Digest can be turned off while the
+    // rest of the digest (and other widgets/metric tiles) stay on.
+    await admin.from("stores").update({ active_profile_id: "profile_enterprise", custom_feature_overrides: {} }).eq("id", storeId);
+    const d3Result = await asManagerOfStore(
+      storeId,
+      async (page) => {
+        await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "networkidle" });
+        const beforeUpt = await page.getByText("UPT", { exact: true }).count();
+        const beforeGrossSales = await page.getByText("Gross sales", { exact: true }).count();
+        const beforeGrossRevenueTile = await page.getByText("Gross revenue", { exact: true }).count();
+        const { data: enterprise } = await admin.from("store_profiles").select("features").eq("id", "profile_enterprise").single();
+        await admin.from("store_profiles").update({ features: { ...enterprise!.features, exec_kpi_kpi_upt: false } }).eq("id", "profile_enterprise");
+        await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "networkidle" });
+        const afterUpt = await page.getByText("UPT", { exact: true }).count();
+        const afterGrossSales = await page.getByText("Gross sales", { exact: true }).count();
+        const afterGrossRevenueTile = await page.getByText("Gross revenue", { exact: true }).count();
+        await admin.from("store_profiles").update({ features: enterprise!.features }).eq("id", "profile_enterprise");
+        return { beforeUpt, beforeGrossSales, beforeGrossRevenueTile, afterUpt, afterGrossSales, afterGrossRevenueTile };
+      },
+      browser
+    );
+    record(
+      "TC-PROF-D3",
+      "Individual Executive Digest KPI can be turned off independently",
+      d3Result.beforeUpt > 0 && d3Result.afterUpt === 0 && d3Result.afterGrossSales > 0 && d3Result.afterGrossRevenueTile > 0,
+      `before: UPT present=${d3Result.beforeUpt > 0}, Gross sales present=${d3Result.beforeGrossSales > 0}, Gross Revenue tile present=${d3Result.beforeGrossRevenueTile > 0}; after disabling only UPT: UPT gone=${d3Result.afterUpt === 0}, Gross sales still shown=${d3Result.afterGrossSales > 0}, Gross Revenue tile untouched=${d3Result.afterGrossRevenueTile > 0}`
+    );
+
     // Test E: assigning a profile WITHOUT an overrides argument must not wipe a store's existing
     // custom_feature_overrides (the gap fixed in assignStoreProfileAction — it used to reset to {}
     // on every call, silently discarding customizations when a super admin just switched profiles

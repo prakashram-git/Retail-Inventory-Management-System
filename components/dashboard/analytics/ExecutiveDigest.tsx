@@ -10,6 +10,7 @@ import { useStore } from "@/components/providers/StoreProvider";
 import { getExecutiveDigest, getWindowDigest } from "@/lib/actions/analytics";
 import { cn } from "@/lib/utils";
 import type { ExecutiveDigest as ExecutiveDigestData, ExecutiveDigestDaily } from "@/lib/analytics/types";
+import { EXECUTIVE_KPI_LABELS, isExecutiveKpiEnabled, type StoreFeatures } from "@/lib/profiles/types";
 
 type Segment = "today" | "mtd" | "30d";
 
@@ -92,7 +93,15 @@ function downloadCsv(daily: ExecutiveDigestDaily, targetDate: string) {
   URL.revokeObjectURL(url);
 }
 
-export function ExecutiveDigest({ className, style }: { className?: string; style?: React.CSSProperties } = {}) {
+export function ExecutiveDigest({
+  className,
+  style,
+  features,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+  features: StoreFeatures;
+}) {
   const { formatPrice } = useStore();
   const [segment, setSegment] = useState<Segment>("today");
   const [digest, setDigest] = useState<ExecutiveDigestData | null>(null);
@@ -243,40 +252,52 @@ export function ExecutiveDigest({ className, style }: { className?: string; styl
 
         {!isPending && !loadError && daily && segment !== "mtd" && (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
-            <KpiCard
-              spec={{
-                label: "Gross sales",
-                value: daily.gross_sales,
-                format: "currency",
-                deltaPct: segment === "today" ? daily.dod_delta_pct : undefined,
-                deltaLabel: "vs yesterday",
-              }}
-              formatPrice={formatPrice}
-            />
-            <KpiCard
-              spec={{
-                label: "Net sales",
-                value: daily.net_sales,
-                format: "currency",
-                deltaPct: segment === "today" ? daily.wow_delta_pct : undefined,
-                deltaLabel: "vs last week",
-              }}
-              formatPrice={formatPrice}
-            />
-            <KpiCard spec={{ label: "UPT", value: daily.upt, format: "number" }} formatPrice={formatPrice} />
-            <KpiCard spec={{ label: "AOV", value: daily.aov, format: "currency" }} formatPrice={formatPrice} />
-            <KpiCard
-              spec={{
-                label: "Discount leakage",
-                value: daily.discount_leakage_pct,
-                format: "percent",
-                deltaPct: null,
-              }}
-              formatPrice={formatPrice}
-            />
-            <KpiCard spec={{ label: "Total margin loss (discount)", value: daily.discount_total, format: "currency" }} formatPrice={formatPrice} />
-            <KpiCard spec={{ label: "Gross profit", value: daily.gross_profit, format: "currency" }} formatPrice={formatPrice} />
-            <KpiCard spec={{ label: "Gross margin", value: daily.gross_margin_pct, format: "percent" }} formatPrice={formatPrice} />
+            {(
+              [
+                {
+                  id: "kpi_gross_sales",
+                  spec: {
+                    label: EXECUTIVE_KPI_LABELS.kpi_gross_sales,
+                    value: daily.gross_sales,
+                    format: "currency",
+                    deltaPct: segment === "today" ? daily.dod_delta_pct : undefined,
+                    deltaLabel: "vs yesterday",
+                  },
+                },
+                {
+                  id: "kpi_net_sales",
+                  spec: {
+                    label: EXECUTIVE_KPI_LABELS.kpi_net_sales,
+                    value: daily.net_sales,
+                    format: "currency",
+                    deltaPct: segment === "today" ? daily.wow_delta_pct : undefined,
+                    deltaLabel: "vs last week",
+                  },
+                },
+                { id: "kpi_upt", spec: { label: EXECUTIVE_KPI_LABELS.kpi_upt, value: daily.upt, format: "number" } },
+                { id: "kpi_aov", spec: { label: EXECUTIVE_KPI_LABELS.kpi_aov, value: daily.aov, format: "currency" } },
+                {
+                  id: "kpi_discount_leakage",
+                  spec: { label: EXECUTIVE_KPI_LABELS.kpi_discount_leakage, value: daily.discount_leakage_pct, format: "percent", deltaPct: null },
+                },
+                {
+                  id: "kpi_margin_loss",
+                  spec: { label: EXECUTIVE_KPI_LABELS.kpi_margin_loss, value: daily.discount_total, format: "currency" },
+                },
+                {
+                  id: "kpi_gross_profit",
+                  spec: { label: EXECUTIVE_KPI_LABELS.kpi_gross_profit, value: daily.gross_profit, format: "currency" },
+                },
+                {
+                  id: "kpi_gross_margin",
+                  spec: { label: EXECUTIVE_KPI_LABELS.kpi_gross_margin, value: daily.gross_margin_pct, format: "percent" },
+                },
+              ] satisfies { id: string; spec: KpiSpec }[]
+            )
+              .filter((kpi) => isExecutiveKpiEnabled(features, kpi.id))
+              .map((kpi) => (
+                <KpiCard key={kpi.id} spec={kpi.spec} formatPrice={formatPrice} />
+              ))}
           </div>
         )}
       </CardContent>
