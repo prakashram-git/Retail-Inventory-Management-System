@@ -2,16 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { requireSuperAdmin } from "./shared";
-import { FEATURE_KEYS, type StoreProfileDefinition } from "@/lib/profiles/types";
+import {
+  EXECUTIVE_WIDGET_IDS,
+  FEATURE_KEYS,
+  executiveWidgetFeatureKey,
+  type StoreProfileDefinition,
+} from "@/lib/profiles/types";
 
 interface ActionResult {
   success: boolean;
   error?: string;
 }
 
+// The fixed feature toggles plus one per executive widget (exec_widget_<id>) — anything else
+// in the input is dropped rather than saved, so a stray/typo'd key can't silently persist.
+const KNOWN_KEYS = new Set<string>([...FEATURE_KEYS, ...EXECUTIVE_WIDGET_IDS.map(executiveWidgetFeatureKey)]);
+
 function pickFeatures(input: Record<string, boolean>): Record<string, boolean> {
   const out: Record<string, boolean> = {};
-  for (const key of FEATURE_KEYS) if (key in input) out[key] = !!input[key];
+  for (const key of Object.keys(input)) if (KNOWN_KEYS.has(key)) out[key] = !!input[key];
   return out;
 }
 

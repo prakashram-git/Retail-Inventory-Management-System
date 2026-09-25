@@ -23,7 +23,7 @@ import type { ReportsSaleLine, ReportsSaleTouch, StockMovementRow } from "@/lib/
 import type { Category, Product } from "@/lib/types/domain";
 import type { OrderRow } from "@/lib/orders/types";
 import type { DashboardWidgetConfig, DashboardThemeConfig, BorderRadiusStyle } from "@/lib/dashboard/layout-types";
-import { EXECUTIVE_WIDGET_IDS, type StoreFeatures } from "@/lib/profiles/types";
+import { EXECUTIVE_WIDGET_IDS, isExecutiveWidgetEnabled, type StoreFeatures } from "@/lib/profiles/types";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { RecentOrdersCard } from "./RecentOrdersCard";
 import { LowStockCard } from "./LowStockCard";
@@ -187,9 +187,9 @@ export function HomeDashboard({
       (w) =>
         w.visible &&
         widgetRegistry[w.id] &&
-        // Independent of the layout builder's own visibility toggle: a profile with
-        // allow_executive_widgets off hides these regardless of what the store published.
-        (features.allow_executive_widgets || !executiveIds.has(w.id))
+        // Independent of the layout builder's own visibility toggle: the profile's master
+        // switch and its per-widget picks both apply on top of what the store published.
+        (!executiveIds.has(w.id) || isExecutiveWidgetEnabled(features, w.id))
     )
     .sort((a, b) => (a.y === b.y ? a.x - b.x : a.y - b.y));
 

@@ -19,7 +19,14 @@ import {
   updateProfileDefinitionAction,
   type StoreAssignmentRow,
 } from "@/lib/actions/profileActions";
-import { FEATURE_KEYS, FEATURE_LABELS, type StoreProfileDefinition } from "@/lib/profiles/types";
+import {
+  EXECUTIVE_WIDGET_IDS,
+  FEATURE_KEYS,
+  FEATURE_LABELS,
+  executiveWidgetFeatureKey,
+  type StoreProfileDefinition,
+} from "@/lib/profiles/types";
+import { WIDGET_CATALOG } from "@/lib/dashboard/layout-types";
 
 /**
  * Local, optimistic-ish editable state, one per tab: the Matrix tab edits a profile's
@@ -130,6 +137,58 @@ export function ProfileManagerStudio({
                     })}
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Executive Widget Selection</CardTitle>
+            <CardDescription>
+              Pick exactly which BI widgets each profile shows within the executive tier. Only takes
+              effect where &ldquo;Show executive widgets&rdquo; above is also checked for that profile.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            <table className="w-full min-w-[36rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b text-left">
+                  <th className="py-2 pr-3 font-medium">Widget</th>
+                  {profiles.map((p) => (
+                    <th key={p.id} className="px-3 py-2 text-center font-medium">
+                      {p.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {EXECUTIVE_WIDGET_IDS.map((widgetId) => {
+                  const featureKey = executiveWidgetFeatureKey(widgetId);
+                  const label = WIDGET_CATALOG.find((w) => w.id === widgetId)?.label ?? widgetId;
+                  return (
+                    <tr key={widgetId} className="border-b last:border-0">
+                      <td className="py-2 pr-3 text-muted-foreground">{label}</td>
+                      {profiles.map((p) => {
+                        const id = `${p.id}:${featureKey}`;
+                        const checked = p.features[featureKey] !== false;
+                        return (
+                          <td key={p.id} className="px-3 py-2 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <Checkbox
+                                checked={checked}
+                                onCheckedChange={(v) => toggleFeature(p.id, featureKey, v === true)}
+                                aria-label={`${label} for ${p.name}`}
+                                data-testid={`exec-widget-${p.id}-${widgetId}`}
+                              />
+                              {savingKey === id && <Loader2 className="size-3 animate-spin text-muted-foreground" />}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </CardContent>

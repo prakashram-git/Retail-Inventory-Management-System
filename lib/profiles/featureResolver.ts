@@ -2,7 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { StoreFeatures } from "./types";
 
-const FALLBACK: Omit<StoreFeatures, "meta"> = {
+const FALLBACK = {
   show_dashboard: true,
   allow_new_product: true,
   allow_new_category: true,
@@ -11,11 +11,12 @@ const FALLBACK: Omit<StoreFeatures, "meta"> = {
   allow_variant_matrix: true,
   allow_executive_widgets: true,
   high_performance_mode: false,
-};
+} satisfies Omit<StoreFeatures, "meta" | "raw">;
 
-function withMeta(features: Omit<StoreFeatures, "meta">): StoreFeatures {
-  const lite = features.high_performance_mode;
-  return { ...features, meta: { disableMotion: lite, disableBlur: lite } };
+function withMeta(features: Record<string, boolean>): StoreFeatures {
+  const merged = { ...FALLBACK, ...features };
+  const lite = merged.high_performance_mode;
+  return { ...merged, meta: { disableMotion: lite, disableBlur: lite }, raw: features };
 }
 
 /**
@@ -41,11 +42,11 @@ export async function getStoreEffectiveFeatures(storeId: string): Promise<StoreF
   const profileRel = store.store_profiles;
   const profileFeatures = Array.isArray(profileRel) ? profileRel[0]?.features : profileRel?.features;
 
-  const merged = {
+  const merged: Record<string, boolean> = {
     ...FALLBACK,
     ...(profileFeatures ?? {}),
     ...(store.custom_feature_overrides ?? {}),
-  } as Omit<StoreFeatures, "meta">;
+  };
 
   return withMeta(merged);
 }

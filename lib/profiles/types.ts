@@ -13,6 +13,14 @@ export interface StoreFeatures {
    * "lite" tablet skips motion/blur without every consumer re-deriving it from the flag.
    */
   meta: { disableMotion: boolean; disableBlur: boolean };
+  /**
+   * The full merged jsonb (profile.features shallow-merged with the store's own overrides),
+   * untyped — this is where per-widget executive picks (see executiveWidgetFeatureKey) live.
+   * They aren't part of the typed fields above because the set of widgets can grow without a
+   * migration: a key simply absent from `raw` means "not yet customized", not "off" — see
+   * isExecutiveWidgetEnabled.
+   */
+  raw: Record<string, boolean>;
 }
 
 export const FEATURE_KEYS = [
@@ -52,6 +60,23 @@ export const EXECUTIVE_WIDGET_IDS = [
   "widget_sell_through",
   "widget_pinned_report",
 ] as const;
+
+/** The `features` jsonb key that selects one executive widget in or out of a profile. */
+export function executiveWidgetFeatureKey(widgetId: string): string {
+  return `exec_widget_${widgetId}`;
+}
+
+/**
+ * A widget is enabled only when the category master switch is on AND it hasn't been
+ * individually turned off. Absent from `raw` (no profile has ever saved a pick for it — e.g.
+ * a brand-new widget added to EXECUTIVE_WIDGET_IDS after profiles were last edited) defaults
+ * to enabled, the same "never silently take something away that was already showing" rule
+ * `allow_executive_widgets` itself follows.
+ */
+export function isExecutiveWidgetEnabled(features: Pick<StoreFeatures, "allow_executive_widgets" | "raw">, widgetId: string): boolean {
+  if (!features.allow_executive_widgets) return false;
+  return features.raw[executiveWidgetFeatureKey(widgetId)] !== false;
+}
 
 export interface StoreProfileDefinition {
   id: string;

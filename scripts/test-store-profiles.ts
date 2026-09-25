@@ -185,6 +185,32 @@ async function main() {
       `with flag on: Executive Digest present=${dResult.shownWithFlagOn > 0}, operational widget present=${dResult.operationalAlwaysVisible > 0}; with flag off: Executive Digest gone=${dResult.hiddenWithFlagOff === 0}, Cashier Leaderboard gone=${dResult.leaderboardHiddenToo === 0}, operational widget still present=${dResult.operationalStillVisible > 0}`
     );
 
+    // Test D2: an individual executive widget can be turned off while the rest of the
+    // category (and the master switch) stays on — the per-widget picks added on top of
+    // allow_executive_widgets, and unset widgets stay enabled by default (no migration
+    // needed to seed every widget key on every existing profile).
+    await admin.from("stores").update({ active_profile_id: "profile_enterprise", custom_feature_overrides: {} }).eq("id", storeId);
+    const d2Result = await asManagerOfStore(
+      storeId,
+      async (page) => {
+        await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "networkidle" });
+        const bothShownByDefault = { digest: await page.getByText("Executive digest").count(), leaderboard: await page.getByText("Cashier leaderboard", { exact: false }).count() };
+        const { data: enterprise } = await admin.from("store_profiles").select("features").eq("id", "profile_enterprise").single();
+        await admin.from("store_profiles").update({ features: { ...enterprise!.features, exec_widget_widget_cashier_leaderboard: false } }).eq("id", "profile_enterprise");
+        await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "networkidle" });
+        const afterTurningOffOne = { digest: await page.getByText("Executive digest").count(), leaderboard: await page.getByText("Cashier leaderboard", { exact: false }).count() };
+        await admin.from("store_profiles").update({ features: enterprise!.features }).eq("id", "profile_enterprise");
+        return { bothShownByDefault, afterTurningOffOne };
+      },
+      browser
+    );
+    record(
+      "TC-PROF-D2",
+      "Individual executive widget can be turned off independently",
+      d2Result.bothShownByDefault.digest > 0 && d2Result.bothShownByDefault.leaderboard > 0 && d2Result.afterTurningOffOne.digest > 0 && d2Result.afterTurningOffOne.leaderboard === 0,
+      `before: digest=${d2Result.bothShownByDefault.digest > 0}, leaderboard=${d2Result.bothShownByDefault.leaderboard > 0}; after disabling only the leaderboard widget: digest still shown=${d2Result.afterTurningOffOne.digest > 0}, leaderboard gone=${d2Result.afterTurningOffOne.leaderboard === 0}`
+    );
+
     // Test E: assigning a profile WITHOUT an overrides argument must not wipe a store's existing
     // custom_feature_overrides (the gap fixed in assignStoreProfileAction — it used to reset to {}
     // on every call, silently discarding customizations when a super admin just switched profiles
