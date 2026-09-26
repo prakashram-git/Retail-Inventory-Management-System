@@ -91,7 +91,7 @@ export function UserMenu() {
           </div>
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="min-h-11" onClick={lock}>
+        <DropdownMenuItem className="min-h-11" onClick={() => lock("manual")}>
           <Lock />
           Lock Terminal / Switch PIN
         </DropdownMenuItem>

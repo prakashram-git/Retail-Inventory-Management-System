@@ -1,32 +1,97 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Lock, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { verifyPosPin } from "@/lib/actions/pos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { getLockoutState, recordFailedAttempt, clearAttempts } from "@/lib/pos/pin-lockout";
+import { logLockEvent } from "@/lib/pos/lockAudit";
+
+function formatRemaining(ms: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+interface LockOverlayProps {
+  onUnlock: () => void;
+  onSignOut: () => Promise<void>;
+  storeId: string;
+  userId: string;
+  unitNumber: string | null;
+}
 
 /**
  * Frosted full-screen lock. It only covers the UI — nothing underneath
  * (cart, register session, offline queue) is touched, so unlocking resumes
  * exactly where the cashier left off.
+ *
+ * Brute-force protection is enforced fully offline via Dexie
+ * (lib/pos/pin-lockout.ts): a progressive delay for the first few wrong
+ * PINs, then a hard 30-minute lockout after 6 — matching PCI DSS v4.0 8.2.4.
  */
-export function LockOverlay({ onUnlock, onSignOut }: { onUnlock: () => void; onSignOut: () => Promise<void> }) {
+export function LockOverlay({ onUnlock, onSignOut, storeId, userId, unitNumber }: LockOverlayProps) {
   const [secret, setSecret] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [lockedUntilMs, setLockedUntilMs] = useState<number | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const pendingDelayRef = useRef(0);
+
+  useEffect(() => {
+    getLockoutState(storeId, userId).then((state) => {
+      setLockedUntilMs(state.lockedOut ? state.lockedUntilMs : null);
+      pendingDelayRef.current = state.nextAttemptDelayMs;
+    });
+  }, [storeId, userId]);
+
+  useEffect(() => {
+    if (!lockedUntilMs) return;
+    const interval = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(interval);
+  }, [lockedUntilMs]);
+
+  const isLockedOut = lockedUntilMs !== null && lockedUntilMs > nowMs;
 
   async function submit() {
-    if (!secret) return;
+    if (!secret || isLockedOut) return;
+    if (pendingDelayRef.current > 0) {
+      await new Promise((resolve) => setTimeout(resolve, pendingDelayRef.current));
+    }
+
     setIsVerifying(true);
     try {
       if (await verifyPosPin(secret)) {
         setSecret("");
+        await clearAttempts(storeId, userId);
         onUnlock();
       } else {
-        toast.error("Incorrect PIN");
         setSecret("");
+        const state = await recordFailedAttempt(storeId, userId);
+        pendingDelayRef.current = state.nextAttemptDelayMs;
+        if (state.lockedOut) {
+          setLockedUntilMs(state.lockedUntilMs);
+          logLockEvent({
+            storeId,
+            userId,
+            unitNumber,
+            eventType: "unlock_locked_out",
+            reason: `${state.failedCount} failed attempts`,
+          });
+          toast.error("Too many failed attempts — locked for 30 minutes. Contact a manager.");
+        } else {
+          logLockEvent({
+            storeId,
+            userId,
+            unitNumber,
+            eventType: "unlock_failed",
+            reason: `attempt ${state.failedCount}`,
+          });
+          toast.error("Incorrect PIN");
+        }
       }
     } catch {
       toast.error("Could not verify PIN — try again");
@@ -47,33 +112,48 @@ export function LockOverlay({ onUnlock, onSignOut }: { onUnlock: () => void; onS
       <div className="flex flex-col items-center gap-2 text-center">
         <Lock className="size-8 text-muted-foreground" />
         <p className="text-lg font-semibold">Terminal locked</p>
-        <p className="text-sm text-muted-foreground">Enter your PIN to resume — your cart is still here.</p>
+        <p className="text-sm text-muted-foreground">
+          {isLockedOut
+            ? "Too many failed attempts."
+            : "Enter your PIN to resume — your cart is still here."}
+        </p>
       </div>
 
-      <div className="flex w-full max-w-[260px] flex-col gap-3">
-        <Label htmlFor="terminal-lock-pin" className="sr-only">
-          PIN (or account password if you have no PIN)
-        </Label>
-        <Input
-          id="terminal-lock-pin"
-          type="password"
-          autoFocus
-          autoComplete="off"
-          value={secret}
-          onChange={(e) => setSecret(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          disabled={isVerifying}
-          className="touch-target text-center font-mono text-lg tracking-widest"
-          placeholder="PIN"
-        />
-        <Button onClick={submit} disabled={isVerifying || !secret} className="touch-target">
-          {isVerifying ? "Verifying..." : "Unlock"}
-        </Button>
-        <Button variant="ghost" onClick={() => void onSignOut()} className="touch-target text-muted-foreground">
-          <LogOut />
-          Sign out instead
-        </Button>
-      </div>
+      {isLockedOut ? (
+        <div className="flex w-full max-w-[260px] flex-col gap-3 text-center">
+          <p className="font-mono text-2xl tabular-nums">{formatRemaining(lockedUntilMs! - nowMs)}</p>
+          <p className="text-xs text-muted-foreground">A manager can sign in to unlock immediately.</p>
+          <Button variant="ghost" onClick={() => void onSignOut()} className="touch-target text-muted-foreground">
+            <LogOut />
+            Sign out instead
+          </Button>
+        </div>
+      ) : (
+        <div className="flex w-full max-w-[260px] flex-col gap-3">
+          <Label htmlFor="terminal-lock-pin" className="sr-only">
+            PIN (or account password if you have no PIN)
+          </Label>
+          <Input
+            id="terminal-lock-pin"
+            type="password"
+            autoFocus
+            autoComplete="off"
+            value={secret}
+            onChange={(e) => setSecret(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            disabled={isVerifying}
+            className="touch-target text-center font-mono text-lg tracking-widest"
+            placeholder="PIN"
+          />
+          <Button onClick={submit} disabled={isVerifying || !secret} className="touch-target">
+            {isVerifying ? "Verifying..." : "Unlock"}
+          </Button>
+          <Button variant="ghost" onClick={() => void onSignOut()} className="touch-target text-muted-foreground">
+            <LogOut />
+            Sign out instead
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

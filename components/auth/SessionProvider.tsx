@@ -16,6 +16,7 @@ import { getPendingSyncCount } from "@/lib/offline/sync";
 import { useSync } from "@/components/providers/SyncProvider";
 import { getOpenSession } from "@/lib/pos/session";
 import { clearParkedCart, parkCart } from "@/lib/pos/parkedCart";
+import { logLockEvent } from "@/lib/pos/lockAudit";
 import { createClient } from "@/lib/supabase/client";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
 import { useStore } from "@/components/providers/StoreProvider";
@@ -40,11 +41,16 @@ export interface PosSnapshot {
   cartTotal: number;
 }
 
+/** Why the terminal locked, for the audit trail and lock-screen copy. */
+export type LockReason = "inactivity" | "order_completed" | "drawer_closed" | "manual";
+
 interface SessionGuardValue {
   user: SessionUser;
   unitNumber: string | null;
   locked: boolean;
-  lock: () => void;
+  lockReason: LockReason | null;
+  lockedAt: number | null;
+  lock: (reason?: LockReason) => void;
   unlock: () => void;
   /** Runs the safety checks, then opens the confirmation dialog. */
   requestSignOut: (returnFocusTo?: HTMLElement | null) => Promise<void>;
@@ -65,6 +71,8 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
   const { storeId, storeName } = useStore();
   const { triggerSync } = useSync();
   const [locked, setLocked] = useState(false);
+  const [lockReason, setLockReason] = useState<LockReason | null>(null);
+  const [lockedAt, setLockedAt] = useState<number | null>(null);
   const [pos, setPos] = useState<PosSnapshot | null>(null);
   const [checks, setChecks] = useState<SignOutChecks | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -133,9 +141,31 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
     else toast.error(`${remaining} transaction(s) still pending`);
   }, [triggerSync]);
 
-  const lock = useCallback(() => setLocked(true), []);
+  const lock = useCallback(
+    (reason: LockReason = "manual") => {
+      setLocked(true);
+      setLockReason(reason);
+      setLockedAt(Date.now());
+      logLockEvent({
+        storeId,
+        userId: user.id,
+        unitNumber: posRef.current?.unitNumber ?? null,
+        eventType: "locked",
+        reason,
+      });
+    },
+    [storeId, user.id]
+  );
   const unlock = useCallback(() => {
     setLocked(false);
+    setLockReason(null);
+    setLockedAt(null);
+    logLockEvent({
+      storeId,
+      userId: user.id,
+      unitNumber: posRef.current?.unitNumber ?? null,
+      eventType: "unlocked",
+    });
     // The cart is live in memory again; a stale parked copy would otherwise
     // resurrect an already-sold cart on the next page load.
     void clearParkedCart(storeId, user.id).catch(() => {});
@@ -152,6 +182,14 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
     }
     setDialogOpen(false);
     setLocked(true);
+    setLockReason("manual");
+    setLockedAt(Date.now());
+    logLockEvent({
+      storeId,
+      userId: user.id,
+      unitNumber: snapshot.unitNumber,
+      eventType: "cart_parked",
+    });
     toast.success("Cart parked. Terminal locked.");
   }, [storeId, user.id]);
 
@@ -190,13 +228,26 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
       user,
       unitNumber: pos?.unitNumber ?? null,
       locked,
+      lockReason,
+      lockedAt,
       lock,
       unlock,
       requestSignOut,
       signOutNow: teardown,
       registerPos,
     }),
-    [user, pos?.unitNumber, locked, lock, unlock, requestSignOut, teardown, registerPos]
+    [
+      user,
+      pos?.unitNumber,
+      locked,
+      lockReason,
+      lockedAt,
+      lock,
+      unlock,
+      requestSignOut,
+      teardown,
+      registerPos,
+    ]
   );
 
   return (
@@ -213,7 +264,15 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
         onPark={parkAndLock}
         onSyncNow={syncNow}
       />
-      {locked && <LockOverlay onUnlock={unlock} onSignOut={teardown} />}
+      {locked && (
+        <LockOverlay
+          onUnlock={unlock}
+          onSignOut={teardown}
+          storeId={storeId}
+          userId={user.id}
+          unitNumber={pos?.unitNumber ?? null}
+        />
+      )}
     </SessionGuardContext.Provider>
   );
 }

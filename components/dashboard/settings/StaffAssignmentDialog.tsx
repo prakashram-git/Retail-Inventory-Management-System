@@ -2,8 +2,13 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Copy, CheckCircle2, KeyRound } from "lucide-react";
-import { updateStaffAssignment, setStaffActive, resetStaffPassword } from "@/lib/actions/staff";
+import { Copy, CheckCircle2, KeyRound, Lock } from "lucide-react";
+import {
+  updateStaffAssignment,
+  setStaffActive,
+  resetStaffPassword,
+  resetStaffPosPin,
+} from "@/lib/actions/staff";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +55,10 @@ export function StaffAssignmentDialog({
   );
   const [resetPanelOpen, setResetPanelOpen] = useState(false);
   const [customPassword, setCustomPassword] = useState("");
+  const [pinPending, startPinTransition] = useTransition();
+  const [pinResult, setPinResult] = useState<{ pin: string } | null>(null);
+  const [pinPanelOpen, setPinPanelOpen] = useState(false);
+  const [customPin, setCustomPin] = useState("");
 
   // Keyed on staffMember?.id rather than the staffMember object itself:
   // resetStaffPassword/updateStaffAssignment revalidatePath() refetches
@@ -68,6 +77,9 @@ export function StaffAssignmentDialog({
     setResetResult(null);
     setResetPanelOpen(false);
     setCustomPassword("");
+    setPinResult(null);
+    setPinPanelOpen(false);
+    setCustomPin("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, staffMember?.id]);
 
@@ -89,6 +101,32 @@ export function StaffAssignmentDialog({
         toast.error(error instanceof Error ? error.message : "Something went wrong");
       }
     });
+  }
+
+  function confirmResetPin() {
+    if (customPin && !/^\d{4,6}$/.test(customPin)) {
+      toast.error("PIN must be 4 to 6 digits.");
+      return;
+    }
+
+    startPinTransition(async () => {
+      try {
+        const result = await resetStaffPosPin(staffMember!.id, customPin.trim() || undefined);
+        setPinResult(result);
+        setPinPanelOpen(false);
+        setCustomPin("");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Something went wrong");
+      }
+    });
+  }
+
+  function copyResetPin() {
+    if (!pinResult) return;
+    navigator.clipboard
+      .writeText(pinResult.pin)
+      .then(() => toast.success("PIN copied"))
+      .catch(() => toast.error("Couldn't copy to clipboard"));
   }
 
   function copyResetCredentials() {
@@ -153,6 +191,30 @@ export function StaffAssignmentDialog({
                 <TooltipContent>Copy credentials</TooltipContent>
               </Tooltip>
               <Button onClick={() => setResetResult(null)}>Done</Button>
+            </DialogFooter>
+          </>
+        ) : pinResult ? (
+          <>
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <CheckCircle2 className="size-5 text-emerald-600" />
+              Terminal lock PIN reset
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Share this PIN with {staffMember.full_name ?? staffMember.email} directly — it is
+              shown only once and is used to unlock a locked POS terminal.
+            </p>
+            <div className="flex flex-col gap-1 rounded-lg border bg-muted px-3 py-2 font-mono text-sm">
+              <span>{pinResult.pin}</span>
+            </div>
+            <DialogFooter>
+              <Tooltip>
+                <TooltipTrigger render={<Button variant="outline" size="icon" onClick={copyResetPin} />}>
+                  <Copy />
+                  <span className="sr-only">Copy PIN</span>
+                </TooltipTrigger>
+                <TooltipContent>Copy PIN</TooltipContent>
+              </Tooltip>
+              <Button onClick={() => setPinResult(null)}>Done</Button>
             </DialogFooter>
           </>
         ) : (
@@ -248,18 +310,61 @@ export function StaffAssignmentDialog({
                   </div>
                 </div>
               )}
+
+              {pinPanelOpen && (
+                <div className="flex flex-col gap-1.5 rounded-lg border p-3">
+                  <Label htmlFor="reset-custom-pin">New terminal lock PIN</Label>
+                  <Input
+                    id="reset-custom-pin"
+                    type="password"
+                    inputMode="numeric"
+                    autoFocus
+                    value={customPin}
+                    onChange={(e) => setCustomPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    disabled={pinPending}
+                    placeholder="4-6 digits — leave blank to generate one"
+                  />
+                  <div className="mt-1 flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setPinPanelOpen(false);
+                        setCustomPin("");
+                      }}
+                      disabled={pinPending}
+                    >
+                      Cancel
+                    </Button>
+                    <Button size="sm" onClick={confirmResetPin} disabled={pinPending}>
+                      {pinPending ? "Resetting..." : "Confirm reset"}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <DialogFooter className="sm:justify-between">
-              <Button
-                variant="outline"
-                className="gap-1.5"
-                onClick={() => setResetPanelOpen(true)}
-                disabled={resetPending || isPending || resetPanelOpen}
-              >
-                <KeyRound className="size-4" />
-                Reset password
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setResetPanelOpen(true)}
+                  disabled={resetPending || isPending || resetPanelOpen || pinPanelOpen}
+                >
+                  <KeyRound className="size-4" />
+                  Reset password
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => setPinPanelOpen(true)}
+                  disabled={pinPending || isPending || pinPanelOpen || resetPanelOpen}
+                >
+                  <Lock className="size-4" />
+                  Reset PIN
+                </Button>
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
                   Cancel

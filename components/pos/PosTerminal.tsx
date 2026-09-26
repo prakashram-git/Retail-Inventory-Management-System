@@ -29,6 +29,7 @@ import { useHelpCenter } from "@/components/help/HelpCenterContext";
 import { OpenRegisterDialog } from "./OpenRegisterDialog";
 import { CloseShiftModal } from "./CloseShiftModal";
 import { TerminalLock } from "./TerminalLock";
+import { OrphanedCartPrompt } from "./OrphanedCartPrompt";
 import type { UserRole } from "@/lib/types/domain";
 
 interface PosTerminalProps {
@@ -43,6 +44,10 @@ interface PosTerminalProps {
   unitNumber: string | null;
   floorNumber: string | null;
   taxRatePercent: number;
+  inactivityTimeoutSeconds: number;
+  lockOnOrderComplete: boolean;
+  lockOnDrawerClose: boolean;
+  staffDirectory: { id: string; name: string }[];
 }
 
 export function PosTerminal({
@@ -57,6 +62,10 @@ export function PosTerminal({
   unitNumber,
   floorNumber,
   taxRatePercent,
+  inactivityTimeoutSeconds,
+  lockOnOrderComplete,
+  lockOnDrawerClose,
+  staffDirectory,
 }: PosTerminalProps) {
   const router = useRouter();
   const { taxModel } = useStore();
@@ -84,7 +93,19 @@ export function PosTerminal({
   // it turns on, and restore them when it turns off, so practice sales (which
   // only decrement local state) never leave a trace.
   const { trainingMode } = useHelpCenter();
-  const { registerPos } = useSessionGuard();
+  const { registerPos, lock, locked } = useSessionGuard();
+  const canManageOthersCarts = role === "super_admin" || role === "store_manager";
+  // Bumped whenever the terminal transitions to unlocked, so
+  // OrphanedCartPrompt re-checks Dexie for a cart another cashier parked
+  // while this unit sat locked (it can't just check once on mount).
+  const [orphanCheckKey, setOrphanCheckKey] = useState(0);
+  const [wasLocked, setWasLocked] = useState(locked);
+  if (wasLocked && !locked) {
+    setWasLocked(false);
+    setOrphanCheckKey((k) => k + 1);
+  } else if (!wasLocked && locked) {
+    setWasLocked(true);
+  }
   const [prevTraining, setPrevTraining] = useState(false);
   const [trainingSnapshot, setTrainingSnapshot] = useState<{
     products: PosProduct[];
@@ -190,7 +211,7 @@ export function PosTerminal({
     },
     [products, addToCart]
   );
-  useBarcodeScanner(handleScan);
+  useBarcodeScanner(handleScan, locked);
 
   function incrementLine(productId: string) {
     setCart((prev) =>
@@ -234,6 +255,7 @@ export function PosTerminal({
     setCart([]);
     // Training sales never touched the server, so there is nothing to refresh.
     if (isOnline && !trainingMode) router.refresh();
+    if (lockOnOrderComplete && !trainingMode) lock("order_completed");
   }
 
   function handleCloseShiftRequest() {
@@ -386,11 +408,39 @@ export function PosTerminal({
             setJustClosedShift(true);
             setSession(null);
             setCart([]);
+            if (lockOnDrawerClose) lock("drawer_closed");
           }}
         />
       )}
 
-      <TerminalLock />
+      <TerminalLock inactivityTimeoutSeconds={inactivityTimeoutSeconds} />
+
+      {canManageOthersCarts && !locked && (
+        <OrphanedCartPrompt
+          storeId={storeId}
+          unitNumber={unitNumber}
+          currentUserId={cashierId}
+          currentUserName={cashierName}
+          staffDirectory={staffDirectory}
+          refreshKey={orphanCheckKey}
+          onClaim={(lines) => {
+            if (cart.length > 0) {
+              toast.error("Finish or clear your current cart before claiming another.");
+              return;
+            }
+            const fresh = new Map(products.map((p) => [p.id, p]));
+            const restored = lines
+              .map((line) => {
+                const product = fresh.get(line.product.id);
+                return product && product.current_stock > 0
+                  ? { product, quantity: Math.min(line.quantity, product.current_stock) }
+                  : null;
+              })
+              .filter((line): line is CartLine => line !== null);
+            setCart(restored);
+          }}
+        />
+      )}
     </div>
   );
 }

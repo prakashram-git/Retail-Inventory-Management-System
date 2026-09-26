@@ -43,6 +43,17 @@ export interface ParkedCart {
   parked_at: string;
 }
 
+export interface PinUnlockAttempts {
+  /** `${store_id}:${user_id}` — brute-force tracking is per user per store, like ParkedCart. */
+  id: string;
+  store_id: string;
+  user_id: string;
+  failed_count: number;
+  /** ms epoch; null when not currently locked out. */
+  locked_until: number | null;
+  last_attempt_at: number;
+}
+
 export interface OfflineHelpWorkflow {
   id: string;
   /** Role the payload was fetched for — a role change invalidates the cache. */
@@ -68,6 +79,7 @@ const db = new Dexie("MallRetailOfflineDB") as Dexie & {
   offline_categories: EntityTable<OfflineCategory, "id">;
   offline_help_workflows: EntityTable<OfflineHelpWorkflow, "id">;
   parked_carts: EntityTable<ParkedCart, "id">;
+  pin_unlock_attempts: EntityTable<PinUnlockAttempts, "id">;
 };
 
 db.version(1).stores({
@@ -84,6 +96,10 @@ db.version(2).stores({
 
 db.version(3).stores({
   parked_carts: "id, store_id, user_id, parked_at",
+});
+
+db.version(4).stores({
+  pin_unlock_attempts: "id, store_id, user_id",
 });
 
 export { db };

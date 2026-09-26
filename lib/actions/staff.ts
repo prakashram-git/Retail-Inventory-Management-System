@@ -60,6 +60,11 @@ function generateTempPassword(): string {
   return Array.from(bytes, (b) => b.toString(36).padStart(2, "0")).join("").slice(0, 16);
 }
 
+function generatePosPin(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, (b) => (b % 10).toString()).join("");
+}
+
 /**
  * Creates the auth user via the service-role admin client (bypasses RLS,
  * required for cross-store account creation) with a generated temporary
@@ -178,6 +183,37 @@ export async function resetStaffPassword(id: string, customPassword?: string) {
   if (updateError) throw new Error(updateError.message);
 
   return { email: profile.email as string, tempPassword: newPassword };
+}
+
+/**
+ * Super-admin override for a staff member's terminal-lock PIN. Mirrors
+ * resetStaffPassword's one-time-reveal UX, but writes profiles.pos_pin_hash
+ * directly rather than going through GoTrue — the PIN unlocks
+ * TerminalLock/verifyPosPin (lib/actions/pos.ts), it isn't the account
+ * password, so no admin client / auth.admin call is needed here.
+ *
+ * `customPin` lets the admin set a specific PIN (e.g. one they'll tell the
+ * staff member over the phone); when omitted, a random 6-digit PIN is
+ * generated the same way inviteStaff's initial PIN is expected to be chosen.
+ */
+export async function resetStaffPosPin(id: string, customPin?: string) {
+  const { supabase } = await requireSuperAdmin();
+
+  if (customPin && !/^\d{4,6}$/.test(customPin)) {
+    throw new Error("PIN must be 4 to 6 digits.");
+  }
+
+  const newPin = customPin || generatePosPin();
+  const posPinHash = await bcrypt.hash(newPin, 10);
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ pos_pin_hash: posPinHash })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/dashboard/settings/users");
+  return { pin: newPin };
 }
 
 /**

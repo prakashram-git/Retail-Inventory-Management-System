@@ -34,15 +34,25 @@ function isEditableTarget(target: EventTarget | null): boolean {
  *
  * Skips buffering while an input/textarea/contenteditable has focus, so
  * manual typing (e.g. the catalog search box) isn't hijacked.
+ *
+ * Pass `disabled: true` while the terminal is locked — a hardware scanner
+ * behind a locked overlay must not be able to inject data (or Enter-triggered
+ * scans) into whatever the lock screen's PIN field or the rest of the page
+ * happens to have focused.
  */
-export function useBarcodeScanner(onScan: (code: string) => void) {
+export function useBarcodeScanner(onScan: (code: string) => void, disabled = false) {
   const onScanRef = useLatestRef(onScan);
+  const disabledRef = useLatestRef(disabled);
 
   useEffect(() => {
     let buffer = "";
     let lastKeyAt = 0;
 
     function handleKeyDown(e: KeyboardEvent) {
+      if (disabledRef.current) {
+        buffer = "";
+        return;
+      }
       if (isEditableTarget(e.target)) return;
 
       const now = Date.now();
@@ -67,5 +77,5 @@ export function useBarcodeScanner(onScan: (code: string) => void) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onScanRef]);
+  }, [onScanRef, disabledRef]);
 }

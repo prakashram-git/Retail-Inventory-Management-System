@@ -22,3 +22,12 @@ export async function readParkedCart(storeId: string, userId: string): Promise<P
 export async function clearParkedCart(storeId: string, userId: string): Promise<void> {
   await db.parked_carts.delete(keyFor(storeId, userId));
 }
+
+/**
+ * All parked carts for a store on this device, including other users' — used
+ * by OrphanedCartPrompt so a manager unlocking a shared unit can see (and
+ * claim or discard) a cashier's cart left behind, not just their own key.
+ */
+export async function listParkedCartsForStore(storeId: string): Promise<ParkedCart[]> {
+  return db.parked_carts.where("store_id").equals(storeId).toArray();
+}

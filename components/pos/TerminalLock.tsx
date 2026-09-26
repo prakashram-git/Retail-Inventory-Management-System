@@ -3,23 +3,23 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useSessionGuard } from "@/components/auth/SessionProvider";
 
-const INACTIVITY_MS = 120_000;
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "wheel"] as const;
 
 /**
- * Inactivity watcher only: after INACTIVITY_MS without input it asks the
- * session guard to lock. The lock screen itself lives in SessionProvider
- * (components/auth/LockOverlay.tsx) so the header menu can trigger the same
- * lock from any view without touching the cart.
+ * Inactivity watcher only: after `inactivityTimeoutSeconds` without input it
+ * asks the session guard to lock. The lock screen itself lives in
+ * SessionProvider (components/auth/LockOverlay.tsx) so the header menu can
+ * trigger the same lock from any view without touching the cart.
  */
-export function TerminalLock() {
+export function TerminalLock({ inactivityTimeoutSeconds = 300 }: { inactivityTimeoutSeconds?: number }) {
   const { lock } = useSessionGuard();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutMs = inactivityTimeoutSeconds * 1000;
 
   const resetTimer = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(lock, INACTIVITY_MS);
-  }, [lock]);
+    timerRef.current = setTimeout(() => lock("inactivity"), timeoutMs);
+  }, [lock, timeoutMs]);
 
   useEffect(() => {
     resetTimer();

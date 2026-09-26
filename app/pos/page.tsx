@@ -30,7 +30,9 @@ export default async function PosPage() {
   }
   const resolvedStoreId: string = storeId;
 
-  const [{ data: store }, { data: settings }, { data: categories }, { data: products }] =
+  const canManageOthersCarts = profile!.role === "super_admin" || profile!.role === "store_manager";
+
+  const [{ data: store }, { data: settings }, { data: categories }, { data: products }, staffDirectoryResult] =
     await Promise.all([
       supabase
         .from("stores")
@@ -39,7 +41,7 @@ export default async function PosPage() {
         .single(),
       supabase
         .from("system_settings")
-        .select("default_tax_rate")
+        .select("default_tax_rate, inactivity_timeout_seconds, lock_on_order_complete, lock_on_drawer_close")
         .eq("store_id", resolvedStoreId)
         .maybeSingle(),
       supabase
@@ -58,7 +60,18 @@ export default async function PosPage() {
         // Variant parents are non-sellable containers; their child variants are the SKUs.
         .eq("has_variants", false)
         .order("name"),
+      // Only fetched for a manager/admin — used solely to show whose parked
+      // cart OrphanedCartPrompt is offering to claim/discard; cashiers never
+      // see that prompt so they never need this list.
+      canManageOthersCarts
+        ? supabase.from("profiles").select("id, full_name, email").eq("store_id", resolvedStoreId)
+        : Promise.resolve({ data: null }),
     ]);
+
+  const staffDirectory = (staffDirectoryResult.data ?? []).map((member: { id: string; full_name: string | null; email: string }) => ({
+    id: member.id,
+    name: member.full_name || member.email,
+  }));
 
   return (
     <PosTerminal
@@ -73,6 +86,10 @@ export default async function PosPage() {
       unitNumber={store?.unit_number ?? null}
       floorNumber={store?.floor_number ?? null}
       taxRatePercent={settings?.default_tax_rate ?? DEFAULT_TAX_RATE_PERCENT}
+      inactivityTimeoutSeconds={settings?.inactivity_timeout_seconds ?? 300}
+      lockOnOrderComplete={settings?.lock_on_order_complete ?? true}
+      lockOnDrawerClose={settings?.lock_on_drawer_close ?? true}
+      staffDirectory={staffDirectory}
     />
   );
 }
