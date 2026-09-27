@@ -18,6 +18,41 @@ const categoryInputSchema = z.object({
 export type CategoryInput = z.input<typeof categoryInputSchema>;
 
 /**
+ * Case-insensitive duplicate-name guard, scoped to (store_id, parent_id) —
+ * matching how every mainstream retail/e-commerce category tree behaves
+ * (Shopify collections, BigCommerce/WooCommerce categories): a name must be
+ * unique among siblings, but the same name is fine again under a different
+ * parent (e.g. "Accessories" under both "Men" and "Women"), and top-level
+ * names are unique among themselves. Without this, "Menswear" and
+ * "menswear" would silently coexist as two different categories (only their
+ * slugs differ), which is exactly the kind of duplicate a real merchant
+ * would consider a data-entry mistake, not a feature.
+ */
+async function assertNameIsFree(
+  supabase: SupabaseClient,
+  storeId: string,
+  parentId: string | null,
+  name: string,
+  excludeId?: string
+) {
+  let query = supabase
+    .from("categories")
+    .select("id")
+    .eq("store_id", storeId)
+    .ilike("name", name.trim().replace(/[\\%_]/g, "\\$&"))
+    .limit(1);
+  query = parentId ? query.eq("parent_id", parentId) : query.is("parent_id", null);
+  if (excludeId) query = query.neq("id", excludeId);
+
+  const { data } = await query;
+  if (data && data.length > 0) {
+    throw new Error(
+      `A category named "${name.trim()}" already exists${parentId ? " under that parent" : ""}.`
+    );
+  }
+}
+
+/**
  * Appends a numeric suffix until the slug is free within the store. Scoped
  * by store_id (not globally) since two stores may legitimately both want
  * "menswear".
@@ -80,6 +115,8 @@ export async function createCategory(input: CategoryInput): Promise<ActionResult
       if (!parent) return { success: false, error: "Selected parent category was not found." };
     }
 
+    await assertNameIsFree(supabase, storeId, parsed.parent_id, parsed.name);
+
     const slug = await uniqueSlug(supabase, storeId, parsed.name);
 
     const { data: category, error } = await supabase
@@ -129,6 +166,8 @@ export async function updateCategory(id: string, input: CategoryInput) {
       .maybeSingle();
     if (!parent) throw new Error("Selected parent category was not found.");
   }
+
+  await assertNameIsFree(supabase, storeId, parsed.parent_id, parsed.name, id);
 
   const slug =
     existing.name === parsed.name

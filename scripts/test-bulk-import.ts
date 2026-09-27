@@ -72,7 +72,7 @@ async function previewRows(page: Page) {
 
 async function commitAndGetResults(page: Page) {
   await page.getByRole("button", { name: /^Import \d+ row/ }).click();
-  await page.getByText(/imported successfully/).waitFor({ timeout: 20000 });
+  await page.getByText(/\d+ of \d+ rows? imported/).waitFor({ timeout: 20000 });
   return page.locator("table tbody tr").allTextContents();
 }
 
@@ -220,6 +220,8 @@ async function main() {
       [`TCBULK Shoes Kids ${suffix}`, `TCBULK Shoes ${suffix}`, "Package", "5", "false"],
       [`TCBULK Shoes ${suffix}`, "", "Package", "5", "false"],
       [`TCBULK Orphan ${suffix}`, "TCBULK No Such Parent", "Package", "5", "false"],
+      [existingCategoryName.toUpperCase(), "", "Package", "5", "false"],
+      [`TCBULK Shoes Kids ${suffix}`, `TCBULK Shoes ${suffix}`, "Package", "5", "false"],
     ]);
 
     const categoryPreview = await asManagerOfStore(
@@ -274,6 +276,27 @@ async function main() {
       "Row with an unresolvable parent name is rejected",
       catRowText(`TCBULK Orphan ${suffix}`).includes("Invalid") && /not found/.test(catRowText(`TCBULK Orphan ${suffix}`)),
       `preview row: "${catRowText(`TCBULK Orphan ${suffix}`)}"`
+    );
+
+    const dupTopLevelRow = catRowText(existingCategoryName.toUpperCase());
+    record(
+      "TC-BULK-10",
+      "A top-level name duplicating an existing category (case-insensitive) is a benign skip, not a rejection",
+      dupTopLevelRow.includes("Valid") &&
+        /already exists.*will be skipped/.test(dupTopLevelRow) &&
+        categoryPreview.commitRows.some((r) => r.includes("Already exists")),
+      `preview row: "${dupTopLevelRow}"; commit rows: ${categoryPreview.commitRows.join(" | ")}`
+    );
+
+    const shoesKidsRows = categoryPreview.rows.filter((r) => r.includes(`TCBULK Shoes Kids ${suffix}`));
+    record(
+      "TC-BULK-11",
+      "A duplicate sibling name under the same parent is rejected (first occurrence still valid)",
+      shoesKidsRows.length === 2 &&
+        shoesKidsRows[0].includes("Valid") &&
+        shoesKidsRows[1].includes("Invalid") &&
+        /already exists under that parent/.test(shoesKidsRows[1]),
+      `rows: ${shoesKidsRows.join(" || ")}`
     );
 
     // --- Feature-flag gating -------------------------------------------

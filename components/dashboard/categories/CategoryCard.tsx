@@ -31,43 +31,41 @@ export function CategoryCard({
 
   return (
     <Card size="sm" className={cn(variant === "child" && "bg-muted/30")}>
-      <CardContent className="flex items-start gap-3">
+      <CardContent className="flex items-center gap-2.5">
         <div
           className={cn(
             "flex shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary",
-            variant === "parent" ? "size-10" : "size-8"
+            variant === "parent" ? "size-8" : "size-7"
           )}
         >
           {/* Icon is looked up from a static map, not defined here, but the
               linter's heuristic can't tell the two apart from a capitalized
               local binding. */}
           {/* eslint-disable-next-line react-hooks/static-components */}
-          <Icon className={variant === "parent" ? "size-5" : "size-4"} />
+          <Icon className={variant === "parent" ? "size-4" : "size-3.5"} />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
-          <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
             <span
               className={cn(
                 "truncate font-medium",
-                variant === "parent" ? "text-base" : "text-sm"
+                variant === "parent" ? "text-sm" : "text-xs"
               )}
             >
               {category.name}
             </span>
             {category.is_tax_exempt && (
-              <Badge variant="outline" className="gap-1 text-xs">
-                <Percent className="size-3" />
-                Tax exempt
-              </Badge>
+              <Percent className="size-3 shrink-0 text-muted-foreground" aria-label="Tax exempt" />
             )}
           </div>
-          <code className="text-xs text-muted-foreground">/{category.slug}</code>
-          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-            <Badge variant="secondary">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant="secondary" className="text-[10px]">
               {category.product_count} {category.product_count === 1 ? "product" : "products"}
             </Badge>
-            <Badge variant="outline">Low-stock at {category.default_min_threshold}</Badge>
+            <Badge variant="outline" className="text-[10px]">
+              Low-stock at {category.default_min_threshold}
+            </Badge>
           </div>
         </div>
 

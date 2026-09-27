@@ -21,7 +21,7 @@ interface KpiItem {
 
 export function InventoryKpiGrid({ items, compact }: { items: KpiItem[]; compact?: boolean }) {
   return (
-    <div className={cn("grid grid-cols-2 gap-3 lg:grid-cols-4", compact && "gap-2")}>
+    <div className={cn("grid grid-cols-2 gap-3 md:grid-cols-4", compact && "gap-2")}>
       {items.map((item) => (
         <Card
           key={item.label}

@@ -63,11 +63,11 @@ export function CategoryManager({ categories }: { categories: CategoryWithCount[
           </Button>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4">
           {topLevel.map((parent) => {
             const children = childrenByParent.get(parent.id) ?? [];
             return (
-              <div key={parent.id} className="flex flex-col gap-3">
+              <div key={parent.id} className="flex flex-col gap-2">
                 <CategoryCard
                   category={parent}
                   variant="parent"
@@ -75,7 +75,7 @@ export function CategoryManager({ categories }: { categories: CategoryWithCount[
                   onDelete={() => setDeleteTarget(parent)}
                 />
 
-                <div className="ml-4 grid gap-2 border-l pl-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="ml-3 grid gap-1.5 border-l pl-3 sm:grid-cols-2 lg:grid-cols-3">
                   {children.map((child) => (
                     <CategoryCard
                       key={child.id}
@@ -88,9 +88,9 @@ export function CategoryManager({ categories }: { categories: CategoryWithCount[
                   <button
                     type="button"
                     onClick={() => openCreate(parent.id)}
-                    className="flex min-h-20 items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
+                    className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl border border-dashed text-xs text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground"
                   >
-                    <FolderPlus className="size-4" />
+                    <FolderPlus className="size-3.5" />
                     Add subcategory
                   </button>
                 </div>

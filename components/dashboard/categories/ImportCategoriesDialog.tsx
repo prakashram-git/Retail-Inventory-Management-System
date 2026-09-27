@@ -97,7 +97,8 @@ export function ImportCategoriesDialog({ open, onOpenChange }: ImportCategoriesD
 
   const validCount = rows.filter((r) => r.status === "valid").length;
   const invalidCount = rows.length - validCount;
-  const successCount = commitResults.filter((r) => r.success).length;
+  const createdCount = commitResults.filter((r) => r.success && !r.skipped).length;
+  const skippedCount = commitResults.filter((r) => r.success && r.skipped).length;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -187,7 +188,8 @@ export function ImportCategoriesDialog({ open, onOpenChange }: ImportCategoriesD
         {stage === "done" && (
           <div className="flex flex-col gap-3">
             <p className="text-sm">
-              {successCount} of {commitResults.length} row{commitResults.length === 1 ? "" : "s"} imported successfully.
+              {createdCount} of {commitResults.length} row{commitResults.length === 1 ? "" : "s"} imported
+              {skippedCount > 0 && ` (${skippedCount} already existed and were skipped)`}.
             </p>
             <div className="max-h-96 overflow-y-auto rounded-md border">
               <Table>
@@ -203,8 +205,8 @@ export function ImportCategoriesDialog({ open, onOpenChange }: ImportCategoriesD
                     <TableRow key={r.rowNumber}>
                       <TableCell className="text-muted-foreground">{r.rowNumber}</TableCell>
                       <TableCell>
-                        <Badge variant={r.success ? "secondary" : "destructive"}>
-                          {r.success ? "Imported" : "Failed"}
+                        <Badge variant={!r.success ? "destructive" : r.skipped ? "outline" : "secondary"}>
+                          {!r.success ? "Failed" : r.skipped ? "Already exists" : "Imported"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">{r.error}</TableCell>

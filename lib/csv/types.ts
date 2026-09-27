@@ -22,6 +22,10 @@ export interface CommitRowResult {
   success: boolean;
   id?: string;
   error?: string;
+  /** true when nothing was written because the record already existed and
+   * matched — a benign no-op (re-importing the same file is idempotent),
+   * distinct from a genuine failure. */
+  skipped?: boolean;
 }
 
 export interface CommitSummary {

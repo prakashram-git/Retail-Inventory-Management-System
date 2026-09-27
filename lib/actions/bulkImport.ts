@@ -218,17 +218,22 @@ export async function commitProductsImportAction(
 // ---------------------------------------------------------------------------
 
 /**
- * A category CSV row resolves to one of two shapes:
+ * A category CSV row resolves to one of three shapes:
  * - "direct": parent_id is already known (either the row is top-level, or its
  *   parent already exists in the DB or as a top-level category name).
  * - "pending-parent": the row's parent is itself another top-level row in
  *   this same file, so its real id only exists after that row commits —
  *   commitCategoriesImportAction resolves parentRowNumber to a real id once
  *   the parent has been created.
+ * - "skip": a category with this exact name already exists in this scope
+ *   (same store + parent) — re-importing the same file is a no-op for this
+ *   row rather than a validation error, matching how mainstream bulk-import
+ *   tools treat "already exists" as idempotent, not a failure.
  */
 export type CategoryImportResolved =
   | { mode: "direct"; input: CategoryInput }
-  | { mode: "pending-parent"; input: Omit<CategoryInput, "parent_id">; parentRowNumber: number };
+  | { mode: "pending-parent"; input: Omit<CategoryInput, "parent_id">; parentRowNumber: number }
+  | { mode: "skip"; existingId: string };
 
 export async function validateCategoriesCsvAction(
   rows: Record<string, string>[]
@@ -255,9 +260,32 @@ export async function validateCategoriesCsvAction(
 
   const topLevelIdByName = new Map<string, string>();
   const takenSlugs = new Set<string>();
+  // Existing-category lookup, scoped like assertNameIsFree ("top" for
+  // top-level, else the parent's id) — a row matching one of these is a
+  // no-op skip, not an error (re-importing the same file is idempotent).
+  const existingIdByScope = new Map<string, Map<string, string>>();
+  const getExistingId = (scope: string, name: string) =>
+    existingIdByScope.get(scope)?.get(name.trim().toLowerCase());
+
+  // Intra-file duplicate guard: two NEW rows in the same CSV can't share a
+  // name in the same scope — that's a real mistake in the file, unlike a
+  // row matching something that already exists in the DB (see above).
+  const takenNamesByScope = new Map<string, Set<string>>();
+  const claimName = (scope: string, name: string) => {
+    const set = takenNamesByScope.get(scope) ?? new Set<string>();
+    set.add(name.trim().toLowerCase());
+    takenNamesByScope.set(scope, set);
+  };
+  const isNameTaken = (scope: string, name: string) =>
+    takenNamesByScope.get(scope)?.has(name.trim().toLowerCase()) ?? false;
+
   for (const c of existing ?? []) {
     takenSlugs.add(c.slug);
     if (c.parent_id === null) topLevelIdByName.set(c.name.trim().toLowerCase(), c.id);
+    const scope = c.parent_id ?? "top";
+    const map = existingIdByScope.get(scope) ?? new Map<string, string>();
+    map.set(c.name.trim().toLowerCase(), c.id);
+    existingIdByScope.set(scope, map);
   }
 
   interface Parsed {
@@ -279,14 +307,40 @@ export async function validateCategoriesCsvAction(
   const output = new Map<number, RowValidationResult<CategoryImportResolved>>();
 
   // Pass 1: rows with a blank parent_name become new top-level categories.
-  // A row's own name matching an existing/earlier top-level name is not an
-  // error — createCategory already handles that via slug auto-suffixing.
+  // A row's name colliding with ANOTHER NEW row earlier in this same file is
+  // rejected (a real mistake in the file); colliding with a category that
+  // already exists in the DB is a benign skip instead (re-importing the same
+  // file is idempotent, not an error) — matching createCategory's own
+  // assertNameIsFree scope, just with a friendlier outcome for re-imports.
   const newTopLevelRowByName = new Map<string, number>(); // name(lower) -> rowNumber, this file's pass-1 rows
   for (const p of parsed) {
     if (p.reasons.length > 0 || !p.row) continue;
     if (p.row.parent_name.trim() !== "") continue;
 
     const name = p.row.name.trim();
+    if (isNameTaken("top", name)) {
+      output.set(p.rowNumber, {
+        rowNumber: p.rowNumber,
+        raw: p.raw,
+        status: "invalid",
+        reasons: [`A category named "${name}" already exists.`],
+      });
+      continue;
+    }
+    const existingId = getExistingId("top", name);
+    if (existingId) {
+      claimName("top", name);
+      output.set(p.rowNumber, {
+        rowNumber: p.rowNumber,
+        raw: p.raw,
+        status: "valid",
+        reasons: [`Category "${name}" already exists — this row will be skipped.`],
+        resolved: { mode: "skip", existingId },
+      });
+      continue;
+    }
+    claimName("top", name);
+
     const slug = nextAvailableSlug(slugify(name), takenSlugs);
     takenSlugs.add(slug);
     newTopLevelRowByName.set(name.toLowerCase(), p.rowNumber);
@@ -336,6 +390,36 @@ export async function validateCategoriesCsvAction(
       continue;
     }
 
+    // Sibling scope: the real parent id when known, otherwise a synthetic
+    // per-file-row token — either way, two NEW rows for the same parent
+    // can't share a name, matching assertNameIsFree. A row matching a
+    // category that already exists under that parent is a benign skip
+    // instead (only possible when dbParentId is known — a pending, not-yet-
+    // created parent can't already have real children).
+    const siblingScope = dbParentId ?? `file:${fileParentRow}`;
+    if (isNameTaken(siblingScope, name)) {
+      output.set(p.rowNumber, {
+        rowNumber: p.rowNumber,
+        raw: p.raw,
+        status: "invalid",
+        reasons: [`A category named "${name}" already exists under that parent.`],
+      });
+      continue;
+    }
+    const existingChildId = dbParentId ? getExistingId(dbParentId, name) : undefined;
+    if (existingChildId) {
+      claimName(siblingScope, name);
+      output.set(p.rowNumber, {
+        rowNumber: p.rowNumber,
+        raw: p.raw,
+        status: "valid",
+        reasons: [`Category "${name}" already exists under "${parentName}" — this row will be skipped.`],
+        resolved: { mode: "skip", existingId: existingChildId },
+      });
+      continue;
+    }
+    claimName(siblingScope, name);
+
     const slug = nextAvailableSlug(slugify(name), takenSlugs);
     takenSlugs.add(slug);
 
@@ -378,6 +462,13 @@ export async function commitCategoriesImportAction(
 
   const direct = rows.filter((r) => r.resolved.mode === "direct");
   const pending = rows.filter((r) => r.resolved.mode === "pending-parent");
+  const skipped = rows.filter((r) => r.resolved.mode === "skip");
+
+  for (const { rowNumber, resolved } of skipped) {
+    if (resolved.mode !== "skip") continue;
+    committedIds.set(rowNumber, resolved.existingId);
+    results.push({ rowNumber, success: true, id: resolved.existingId, skipped: true });
+  }
 
   for (const { rowNumber, resolved } of direct) {
     if (resolved.mode !== "direct") continue;

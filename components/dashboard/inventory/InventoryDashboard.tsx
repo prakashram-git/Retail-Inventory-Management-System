@@ -15,15 +15,20 @@ import {
   PackagePlus,
   ClipboardCheck,
   Upload,
+  Download,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useStore } from "@/components/providers/StoreProvider";
 import { cn } from "@/lib/utils";
 import { getEffectiveThreshold, getStockStatus } from "@/lib/utils/inventory";
+import { exportToCsv } from "@/lib/reports/exporter";
+import type { ReportColumn } from "@/lib/reports/catalog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   Table,
@@ -39,6 +44,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CategorySelect } from "./CategorySelect";
 import {
   ProductThumbnail,
@@ -50,6 +56,7 @@ import {
 import { InventoryKpiGrid } from "./InventoryKpiGrid";
 import { ProductSheet } from "./ProductSheet";
 import { DeleteProductDialog } from "./DeleteProductDialog";
+import { BulkDeleteProductsDialog } from "./BulkDeleteProductsDialog";
 import { StockAdjustmentModal } from "./StockAdjustmentModal";
 import { ImportProductsDialog } from "./ImportProductsDialog";
 import { VarianceAlertBanner, type VarianceOrderSummary } from "./VarianceAlertBanner";
@@ -59,6 +66,42 @@ interface InventoryDashboardProps {
   products: ProductWithCategory[];
   categories: Category[];
   varianceOrders: VarianceOrderSummary[];
+}
+
+/** Mirrors PRODUCT_CSV_COLUMNS (lib/products/csvSchema.ts) so an export can be
+ * edited and re-imported through the same Import CSV flow. */
+const PRODUCT_EXPORT_COLUMNS: ReportColumn[] = [
+  { key: "name", label: "name", type: "string" },
+  { key: "sku", label: "sku", type: "string" },
+  { key: "barcode", label: "barcode", type: "string" },
+  { key: "category_name", label: "category_name", type: "string" },
+  { key: "tags", label: "tags", type: "string" },
+  { key: "description", label: "description", type: "string" },
+  { key: "cost_price", label: "cost_price", type: "number" },
+  { key: "retail_price", label: "retail_price", type: "number" },
+  { key: "current_stock", label: "current_stock", type: "number" },
+  { key: "min_threshold", label: "min_threshold", type: "number" },
+  { key: "image_url", label: "image_url", type: "string" },
+  { key: "is_active", label: "is_active", type: "string" },
+];
+
+function exportProductsCsv(products: ProductWithCategory[]) {
+  const rows = products.map((p) => ({
+    name: p.name,
+    sku: p.sku,
+    barcode: p.barcode ?? "",
+    category_name: p.category?.name ?? "",
+    tags: (p.tags ?? []).join(";"),
+    description: p.description ?? "",
+    cost_price: p.cost_price,
+    retail_price: p.retail_price,
+    current_stock: p.current_stock,
+    min_threshold: p.min_threshold ?? "",
+    image_url: p.image_url ?? "",
+    is_active: p.is_active ? "true" : "false",
+  }));
+  const stamp = new Date().toISOString().slice(0, 10);
+  exportToCsv(PRODUCT_EXPORT_COLUMNS, rows, `products-export-${stamp}.csv`);
 }
 
 export function InventoryDashboard({ products, categories, varianceOrders }: InventoryDashboardProps) {
@@ -73,6 +116,8 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
   const [deleteTarget, setDeleteTarget] = useState<ProductWithCategory | null>(null);
   const [adjustTarget, setAdjustTarget] = useState<ProductWithCategory | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
@@ -132,6 +177,38 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
     setSheetState({ open: true, product });
   }
 
+  const selectedProducts = useMemo(
+    () => filteredProducts.filter((p) => selectedIds.has(p.id)),
+    [filteredProducts, selectedIds]
+  );
+  const allVisibleSelected =
+    filteredProducts.length > 0 && filteredProducts.every((p) => selectedIds.has(p.id));
+  const someVisibleSelected = filteredProducts.some((p) => selectedIds.has(p.id));
+
+  function toggleSelectAll(checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      for (const p of filteredProducts) {
+        if (checked) next.add(p.id);
+        else next.delete(p.id);
+      }
+      return next;
+    });
+  }
+
+  function toggleRow(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  function clearSelection() {
+    setSelectedIds(new Set());
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <VarianceAlertBanner orders={varianceOrders} />
@@ -146,9 +223,9 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
         ]}
       />
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <div className="col-span-2 flex flex-wrap items-center gap-2">
-          <InputGroup className="h-7 w-full sm:w-[182px]">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="col-span-2 flex items-center gap-2">
+          <InputGroup className="h-7 w-full min-w-0 sm:max-w-[182px] sm:flex-1">
             <InputGroupAddon>
               <Search className="size-3.5" />
             </InputGroupAddon>
@@ -160,7 +237,7 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
             />
           </InputGroup>
 
-          <div className="w-full sm:w-[182px] sm:shrink-0">
+          <div className="w-full min-w-0 sm:max-w-[182px] sm:flex-1">
             <CategorySelect
               categories={categories}
               value={categoryFilter}
@@ -196,16 +273,73 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
             <ClipboardCheck />
             Stock take
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
-            <Upload />
-            Import CSV
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button size="icon-sm" variant="outline" onClick={() => setImportOpen(true)}>
+                  <Upload />
+                  <span className="sr-only">Import CSV</span>
+                </Button>
+              }
+            />
+            <TooltipContent>Import CSV</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  disabled={filteredProducts.length === 0}
+                  onClick={() => {
+                    exportProductsCsv(filteredProducts);
+                    toast.success(`Exported ${filteredProducts.length} product${filteredProducts.length === 1 ? "" : "s"}`);
+                  }}
+                >
+                  <Download />
+                  <span className="sr-only">Export</span>
+                </Button>
+              }
+            />
+            <TooltipContent>Export</TooltipContent>
+          </Tooltip>
           <Button size="sm" onClick={openCreate}>
             <Plus />
             New product
           </Button>
         </div>
       </div>
+
+      {selectedProducts.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-1.5">
+          <span className="px-1.5 text-xs font-medium">
+            {selectedProducts.length} selected
+          </span>
+          <Button size="sm" variant="outline" onClick={clearSelection}>
+            Clear selection
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto"
+            onClick={() => {
+              exportProductsCsv(selectedProducts);
+              toast.success(`Exported ${selectedProducts.length} product${selectedProducts.length === 1 ? "" : "s"}`);
+            }}
+          >
+            <Download />
+            Export selected
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setBulkDeleteOpen(true)}
+          >
+            <Trash2 />
+            Delete selected
+          </Button>
+        </div>
+      )}
 
       {filteredProducts.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-12 text-center text-muted-foreground">
@@ -214,18 +348,26 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
       ) : (
         <>
           <div className="hidden overflow-hidden rounded-xl border md:block">
-            <Table className="text-xs [&_td]:py-1 [&_th]:h-8">
+            <Table className="text-xs [&_td]:p-1.5 [&_th]:h-8 [&_th]:px-1.5">
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8 text-center">
+                    <Checkbox
+                      checked={allVisibleSelected}
+                      indeterminate={!allVisibleSelected && someVisibleSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all visible products"
+                    />
+                  </TableHead>
                   <TableHead />
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Barcode</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Cost</TableHead>
-                  <TableHead className="text-right">Retail</TableHead>
-                  <TableHead className="text-right">Margin</TableHead>
-                  <TableHead>Stock</TableHead>
+                  <TableHead className="text-center">SKU</TableHead>
+                  <TableHead className="text-center">Barcode</TableHead>
+                  <TableHead className="text-center">Title</TableHead>
+                  <TableHead className="text-center">Category</TableHead>
+                  <TableHead className="text-center">Cost</TableHead>
+                  <TableHead className="pl-6 text-center">Retail</TableHead>
+                  <TableHead className="text-center">Margin</TableHead>
+                  <TableHead className="text-center">Stock</TableHead>
                   <TableHead className="sticky right-0 z-10 border-l bg-background" />
                 </TableRow>
               </TableHeader>
@@ -243,14 +385,21 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                         !product.is_active && "opacity-60"
                       )}
                     >
-                      <TableCell>
+                      <TableCell className="text-center">
+                        <Checkbox
+                          checked={selectedIds.has(product.id)}
+                          onCheckedChange={(checked) => toggleRow(product.id, checked)}
+                          aria-label={`Select ${product.name}`}
+                        />
+                      </TableCell>
+                      <TableCell className="text-center">
                         <ProductThumbnail product={product} size="sm" />
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{product.sku}</TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">
+                      <TableCell className="text-left font-mono text-xs">{product.sku}</TableCell>
+                      <TableCell className="max-w-20 truncate text-center font-mono text-xs text-muted-foreground">
                         {product.barcode || "—"}
                       </TableCell>
-                      <TableCell className="max-w-48">
+                      <TableCell className="max-w-24">
                         <div className="flex items-center gap-1.5">
                           <span className="truncate text-xs">{product.name}</span>
                           {!product.is_active && (
@@ -260,20 +409,22 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="max-w-20">
                         <CategoryBadge category={product.category} />
                       </TableCell>
-                      <TableCell className="text-right font-mono text-xs">
+                      <TableCell className="text-center font-mono text-xs">
                         {formatPrice(product.cost_price)}
                       </TableCell>
-                      <TableCell className="text-right font-mono text-xs">
+                      <TableCell className="pl-6 text-center font-mono text-xs">
                         {formatPrice(product.retail_price)}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-center">
                         <MarginBadge costPrice={product.cost_price} retailPrice={product.retail_price} />
                       </TableCell>
                       <TableCell>
-                        <StockBar currentStock={product.current_stock} threshold={threshold} />
+                        <div className="flex justify-center">
+                          <StockBar currentStock={product.current_stock} threshold={threshold} />
+                        </div>
                       </TableCell>
                       <TableCell className="sticky right-0 z-10 border-l bg-background">
                         <DropdownMenu>
@@ -405,6 +556,13 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
       />
 
       <ImportProductsDialog open={importOpen} onOpenChange={setImportOpen} />
+
+      <BulkDeleteProductsDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        products={selectedProducts}
+        onDeleted={clearSelection}
+      />
     </div>
   );
 }

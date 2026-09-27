@@ -44,8 +44,10 @@ export function CategoryBadge({ category }: { category: ProductWithCategory["cat
     return <Badge variant="outline">Uncategorized</Badge>;
   }
   return (
-    <div className="flex items-center gap-1.5">
-      <Badge variant="secondary">{category.name}</Badge>
+    <div className="flex min-w-0 items-center gap-1.5">
+      <Badge variant="secondary" className="block max-w-[80px] truncate" title={category.name}>
+        {category.name}
+      </Badge>
       {category.is_tax_exempt && (
         <Badge variant="outline" className="gap-1 text-xs" title="Tax exempt">
           <Percent className="size-3" />
@@ -82,8 +84,8 @@ export function StockBar({
   const value = Math.min(100, (currentStock / reference) * 100);
 
   return (
-    <div className="flex w-32 flex-col gap-1">
-      <div className="flex items-center justify-between text-xs">
+    <div className="flex w-24 flex-col gap-1">
+      <div className="flex items-center text-xs">
         <span
           className={cn(
             "font-mono tabular-nums",
@@ -93,7 +95,7 @@ export function StockBar({
         >
           {currentStock}
         </span>
-        <span className="text-muted-foreground">min {threshold}</span>
+        <span className="flex-1 text-center text-muted-foreground">min {threshold}</span>
       </div>
       <Progress value={value}>
         <ProgressTrack>
