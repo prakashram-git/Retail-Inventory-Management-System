@@ -11,8 +11,14 @@
 alter table public.system_settings
   add column if not exists inactivity_timeout_seconds int not null default 300
     constraint system_settings_inactivity_timeout_bounds check (inactivity_timeout_seconds between 60 and 900);
+-- Defaults to off: locking after every single sale is unusually aggressive for
+-- normal retail throughput. A super_admin opts a store in via Settings > Terminal Lock.
 alter table public.system_settings
-  add column if not exists lock_on_order_complete boolean not null default true;
+  add column if not exists lock_on_order_complete boolean not null default false;
+-- Column may already exist (with the old default) on a database this file ran
+-- against before; re-running must still land on the new default for new rows.
+alter table public.system_settings
+  alter column lock_on_order_complete set default false;
 alter table public.system_settings
   add column if not exists lock_on_drawer_close boolean not null default true;
 

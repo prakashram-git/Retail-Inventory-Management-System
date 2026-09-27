@@ -120,7 +120,7 @@ export default async function PosPage() {
       floorNumber={store?.floor_number ?? null}
       taxRatePercent={settings?.default_tax_rate ?? DEFAULT_TAX_RATE_PERCENT}
       inactivityTimeoutSeconds={settings?.inactivity_timeout_seconds ?? 300}
-      lockOnOrderComplete={settings?.lock_on_order_complete ?? true}
+      lockOnOrderComplete={settings?.lock_on_order_complete ?? false}
       lockOnDrawerClose={settings?.lock_on_drawer_close ?? true}
       staffDirectory={staffDirectory}
     />

@@ -16,7 +16,7 @@ export type TerminalLockSettings = z.infer<typeof terminalLockSettingsSchema>;
 
 const FALLBACK: TerminalLockSettings = {
   inactivity_timeout_seconds: 300,
-  lock_on_order_complete: true,
+  lock_on_order_complete: false,
   lock_on_drawer_close: true,
 };
 
