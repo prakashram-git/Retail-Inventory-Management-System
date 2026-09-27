@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Package, Percent } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress, ProgressTrack, ProgressIndicator } from "@/components/ui/progress";
@@ -14,12 +15,14 @@ export function ProductThumbnail({
   product: ProductWithCategory;
   size?: "default" | "sm";
 }) {
-  if (product.image_url) {
+  const [failed, setFailed] = useState(false);
+  if (product.image_url && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={product.image_url}
         alt={product.name}
+        onError={() => setFailed(true)}
         className={cn(
           "shrink-0 rounded-md object-cover ring-1 ring-border",
           size === "sm" ? "size-7" : "size-10"
