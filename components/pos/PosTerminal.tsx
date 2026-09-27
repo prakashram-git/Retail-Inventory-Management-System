@@ -34,6 +34,7 @@ import type { UserRole } from "@/lib/types/domain";
 
 interface PosTerminalProps {
   initialProducts: PosProduct[];
+  popularProductIds: string[];
   categories: PosCategory[];
   storeId: string;
   role: UserRole;
@@ -52,6 +53,7 @@ interface PosTerminalProps {
 
 export function PosTerminal({
   initialProducts,
+  popularProductIds,
   categories,
   storeId,
   role,
@@ -332,6 +334,7 @@ export function PosTerminal({
         <div className="flex-1 overflow-y-auto p-3 pb-24 lg:w-[65%] lg:flex-none lg:pb-3">
           <CatalogGrid
             products={products}
+            popularProductIds={popularProductIds}
             categories={categories}
             onAdd={addToCart}
             onInspectSisterStores={setSisterStoreProduct}

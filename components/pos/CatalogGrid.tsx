@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, LayoutGrid } from "lucide-react";
+import { Search, LayoutGrid, TrendingUp } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,14 +11,28 @@ import type { PosCategory, PosProduct } from "@/lib/pos/types";
 
 interface CatalogGridProps {
   products: PosProduct[];
+  popularProductIds: string[];
   categories: PosCategory[];
   onAdd: (product: PosProduct) => void;
   onInspectSisterStores: (product: PosProduct) => void;
 }
 
-export function CatalogGrid({ products, categories, onAdd, onInspectSisterStores }: CatalogGridProps) {
+export function CatalogGrid({ products, popularProductIds, categories, onAdd, onInspectSisterStores }: CatalogGridProps) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [randomizedPopular, setRandomizedPopular] = useState({ source: popularProductIds, ids: popularProductIds });
+  const rotatedPopularProductIds =
+    randomizedPopular.source === popularProductIds ? randomizedPopular.ids : popularProductIds;
+
+  function showPopularProducts() {
+    const shuffled = [...popularProductIds];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+    setRandomizedPopular({ source: popularProductIds, ids: shuffled });
+    setCategoryFilter("popular");
+  }
 
   const topLevelCategories = useMemo(() => categories.filter((c) => !c.parent_id), [categories]);
 
@@ -30,13 +44,14 @@ export function CatalogGrid({ products, categories, onAdd, onInspectSisterStores
         if (!haystack.includes(query)) return false;
       }
       if (categoryFilter !== "all") {
+        if (categoryFilter === "popular") return rotatedPopularProductIds.includes(product.id);
         const matchesDirect = product.category_id === categoryFilter;
         const matchesParent = product.category?.parent_id === categoryFilter;
         if (!matchesDirect && !matchesParent) return false;
       }
       return true;
     });
-  }, [products, search, categoryFilter]);
+  }, [products, rotatedPopularProductIds, search, categoryFilter]);
 
   return (
     <div className="flex h-full flex-col gap-3">
@@ -62,6 +77,17 @@ export function CatalogGrid({ products, categories, onAdd, onInspectSisterStores
             <LayoutGrid className="size-4" />
             All
           </Button>
+          {popularProductIds.length > 0 && (
+            <Button
+              variant={categoryFilter === "popular" ? "secondary" : "outline"}
+              size="sm"
+              className="shrink-0 gap-1.5"
+              onClick={showPopularProducts}
+            >
+              <TrendingUp className="size-4" />
+              Popular
+            </Button>
+          )}
           {topLevelCategories.map((category) => {
             const Icon = getCategoryIcon(category.icon);
             return (

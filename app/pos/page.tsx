@@ -31,9 +31,17 @@ export default async function PosPage() {
   const resolvedStoreId: string = storeId;
 
   const canManageOthersCarts = profile!.role === "super_admin" || profile!.role === "store_manager";
+  const demandWindowEnd = new Date();
+  const demandWindowStart = new Date(demandWindowEnd.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const [{ data: store }, { data: settings }, { data: categories }, { data: products }, staffDirectoryResult] =
-    await Promise.all([
+  const [
+    { data: store },
+    { data: settings },
+    { data: categories },
+    { data: products },
+    staffDirectoryResult,
+    { data: salesItems },
+  ] = await Promise.all([
       supabase
         .from("stores")
         .select("name, unit_number, floor_number")
@@ -66,7 +74,31 @@ export default async function PosPage() {
       canManageOthersCarts
         ? supabase.from("profiles").select("id, full_name, email").eq("store_id", resolvedStoreId)
         : Promise.resolve({ data: null }),
+      supabase
+        .from("order_items")
+        .select("product_id, quantity, refunded_quantity, unit_price, order:orders!inner(store_id, created_at, status)")
+        .eq("order.store_id", resolvedStoreId)
+        .neq("order.status", "voided")
+        .gte("order.created_at", demandWindowStart.toISOString())
+        .lte("order.created_at", demandWindowEnd.toISOString()),
     ]);
+
+  const availableProductIds = new Set((products ?? []).filter((product) => product.current_stock > 0).map((product) => product.id));
+  const demandByProduct = new Map<string, { units: number; revenue: number }>();
+  for (const item of salesItems ?? []) {
+    const units = Math.max(0, Number(item.quantity) - Number(item.refunded_quantity));
+    if (!item.product_id || units === 0) continue;
+    const demand = demandByProduct.get(item.product_id) ?? { units: 0, revenue: 0 };
+    demand.units += units;
+    demand.revenue += units * Number(item.unit_price);
+    demandByProduct.set(item.product_id, demand);
+  }
+
+  const popularProductIds = [...demandByProduct.entries()]
+    .filter(([productId, demand]) => availableProductIds.has(productId) && demand.units > 0)
+    .sort((a, b) => b[1].units - a[1].units || b[1].revenue - a[1].revenue)
+    .slice(0, 12)
+    .map(([productId]) => productId);
 
   const staffDirectory = (staffDirectoryResult.data ?? []).map((member: { id: string; full_name: string | null; email: string }) => ({
     id: member.id,
@@ -76,6 +108,7 @@ export default async function PosPage() {
   return (
     <PosTerminal
       initialProducts={(products ?? []) as unknown as PosProduct[]}
+      popularProductIds={popularProductIds}
       categories={(categories ?? []) as PosCategory[]}
       storeId={resolvedStoreId}
       role={profile!.role as UserRole}
