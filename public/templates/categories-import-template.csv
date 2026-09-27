@@ -1,0 +1,3 @@
+name,parent_name,icon,default_min_threshold,is_tax_exempt
+Menswear,,Shirt,5,false
+T-Shirts,Menswear,Shirt,5,false

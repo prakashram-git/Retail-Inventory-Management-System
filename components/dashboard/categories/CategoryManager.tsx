@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, FolderPlus, FolderTree } from "lucide-react";
+import { Plus, FolderPlus, FolderTree, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryCard } from "./CategoryCard";
 import { CategoryDialog } from "./CategoryDialog";
 import { DeleteCategoryDialog } from "./DeleteCategoryDialog";
+import { ImportCategoriesDialog } from "./ImportCategoriesDialog";
 import type { CategoryWithCount } from "@/lib/types/domain";
 
 export function CategoryManager({ categories }: { categories: CategoryWithCount[] }) {
@@ -15,6 +16,7 @@ export function CategoryManager({ categories }: { categories: CategoryWithCount[
     defaultParentId: string | null;
   }>({ open: false, category: null, defaultParentId: null });
   const [deleteTarget, setDeleteTarget] = useState<CategoryWithCount | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   const topLevel = useMemo(
     () => categories.filter((c) => !c.parent_id),
@@ -41,7 +43,11 @@ export function CategoryManager({ categories }: { categories: CategoryWithCount[
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => setImportOpen(true)}>
+          <Upload />
+          Import CSV
+        </Button>
         <Button onClick={() => openCreate(null)}>
           <Plus />
           New category
@@ -111,6 +117,8 @@ export function CategoryManager({ categories }: { categories: CategoryWithCount[
           (c) => c.id !== deleteTarget?.id && c.parent_id !== deleteTarget?.id
         )}
       />
+
+      <ImportCategoriesDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>
   );
 }

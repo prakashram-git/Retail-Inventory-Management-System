@@ -21,7 +21,8 @@
     "test:logout-enhanced": "tsx scripts/test-logout-enhanced.ts",
     "test:sku": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-sku-architecture.ts",
     "test:sku-ui": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-sku-ui.ts",
-    "test:store-profiles": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-store-profiles.ts"
+    "test:store-profiles": "NODE_OPTIONS=--conditions=react-server tsx scripts/test-store-profiles.ts",
+    "test:bulk-import": "tsx scripts/test-bulk-import.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -32,6 +33,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.0",
+    "@types/papaparse": "^5.5.2",
     "bcryptjs": "^3.0.3",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
@@ -44,6 +46,7 @@
     "lucide-react": "^1.47.0",
     "next": "16.3.6",
     "next-themes": "^0.4.6",
+    "papaparse": "^5.7.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-hook-form": "^7.88.0",

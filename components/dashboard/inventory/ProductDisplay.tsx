@@ -7,20 +7,34 @@ import { cn } from "@/lib/utils";
 import { computeMarginPercent, getStockStatus } from "@/lib/utils/inventory";
 import type { ProductWithCategory } from "@/lib/types/domain";
 
-export function ProductThumbnail({ product }: { product: ProductWithCategory }) {
+export function ProductThumbnail({
+  product,
+  size = "default",
+}: {
+  product: ProductWithCategory;
+  size?: "default" | "sm";
+}) {
   if (product.image_url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={product.image_url}
         alt={product.name}
-        className="size-10 shrink-0 rounded-md object-cover ring-1 ring-border"
+        className={cn(
+          "shrink-0 rounded-md object-cover ring-1 ring-border",
+          size === "sm" ? "size-7" : "size-10"
+        )}
       />
     );
   }
   return (
-    <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground ring-1 ring-border">
-      <Package className="size-4" />
+    <div
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground ring-1 ring-border",
+        size === "sm" ? "size-7" : "size-10"
+      )}
+    >
+      <Package className={size === "sm" ? "size-3.5" : "size-4"} />
     </div>
   );
 }
@@ -47,7 +61,7 @@ export function MarginBadge({ costPrice, retailPrice }: { costPrice: number; ret
   return (
     <span
       className={cn(
-        "font-mono text-sm tabular-nums",
+        "font-mono text-xs tabular-nums",
         margin < 20 ? "text-destructive" : margin < 40 ? "text-muted-foreground" : "text-foreground"
       )}
     >

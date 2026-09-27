@@ -58,7 +58,7 @@ export type ActionResult<T = undefined> =
  * builds — this only surfaces on Vercel, not `next dev`, which is why it went unnoticed).
  * Returning the message as data sidesteps that entirely. See CategoryDialog.tsx's caller.
  */
-export async function createCategory(input: CategoryInput): Promise<ActionResult> {
+export async function createCategory(input: CategoryInput): Promise<ActionResult<{ id: string }>> {
   try {
     const parsed = categoryInputSchema.parse(input);
     const { supabase, storeId, role } = await requireStoreContext();
@@ -82,19 +82,23 @@ export async function createCategory(input: CategoryInput): Promise<ActionResult
 
     const slug = await uniqueSlug(supabase, storeId, parsed.name);
 
-    const { error } = await supabase.from("categories").insert({
-      store_id: storeId,
-      parent_id: parsed.parent_id,
-      name: parsed.name,
-      slug,
-      icon: parsed.icon,
-      default_min_threshold: parsed.default_min_threshold,
-      is_tax_exempt: parsed.is_tax_exempt,
-    });
+    const { data: category, error } = await supabase
+      .from("categories")
+      .insert({
+        store_id: storeId,
+        parent_id: parsed.parent_id,
+        name: parsed.name,
+        slug,
+        icon: parsed.icon,
+        default_min_threshold: parsed.default_min_threshold,
+        is_tax_exempt: parsed.is_tax_exempt,
+      })
+      .select("id")
+      .single();
 
     if (error) return { success: false, error: error.message };
     revalidatePath("/dashboard/categories");
-    return { success: true };
+    return { success: true, id: category.id };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Something went wrong" };
   }

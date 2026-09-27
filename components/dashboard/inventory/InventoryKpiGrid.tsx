@@ -19,15 +19,20 @@ interface KpiItem {
   deltaInverse?: boolean;
 }
 
-export function InventoryKpiGrid({ items }: { items: KpiItem[] }) {
+export function InventoryKpiGrid({ items, compact }: { items: KpiItem[]; compact?: boolean }) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className={cn("grid grid-cols-2 gap-3 lg:grid-cols-4", compact && "gap-2")}>
       {items.map((item) => (
-        <Card key={item.label} size="sm" className="transition-shadow hover:shadow-md">
-          <CardContent className="flex items-center gap-3">
+        <Card
+          key={item.label}
+          size="sm"
+          className={cn("transition-shadow hover:shadow-md", compact && "[--card-spacing:--spacing(1)]")}
+        >
+          <CardContent className={cn("flex items-center gap-3", compact && "gap-1")}>
             <div
               className={cn(
                 "flex size-10 shrink-0 items-center justify-center rounded-xl",
+                compact && "size-5 rounded-md",
                 item.tone === "destructive" && "bg-destructive/10 text-destructive",
                 item.tone === "warning" && "bg-amber-500/10 text-amber-600 dark:text-amber-400",
                 item.tone === "success" && "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
@@ -36,11 +41,19 @@ export function InventoryKpiGrid({ items }: { items: KpiItem[] }) {
                 (!item.tone || item.tone === "default") && "bg-primary/10 text-primary"
               )}
             >
-              <item.icon className="size-4.5" />
+              <item.icon className={cn("size-4.5", compact && "size-3")} />
             </div>
             <div className="flex min-w-0 flex-col">
-              <span className="text-xs text-muted-foreground">{item.label}</span>
-              <span className={cn("truncate text-lg font-semibold", item.mono && "font-mono")}>
+              <span className={cn("text-xs text-muted-foreground", compact && "text-[12.5px] leading-tight")}>
+                {item.label}
+              </span>
+              <span
+                className={cn(
+                  "truncate font-semibold",
+                  compact ? "text-[15px] leading-tight" : "text-lg",
+                  item.mono && "font-mono"
+                )}
+              >
                 {item.value}
               </span>
               {item.delta != null && (

@@ -25,6 +25,7 @@ interface CategorySelectProps {
   noneLabel: string;
   noneValue?: string;
   disabled?: boolean;
+  size?: "sm" | "default";
 }
 
 /** A grouped dropdown that lets a value be picked at either the parent or subcategory level. */
@@ -35,6 +36,7 @@ export function CategorySelect({
   noneLabel,
   noneValue = "none",
   disabled,
+  size = "default",
 }: CategorySelectProps) {
   const topLevel = useMemo(() => categories.filter((c) => !c.parent_id), [categories]);
   const childrenByParent = useMemo(() => {
@@ -54,7 +56,7 @@ export function CategorySelect({
       onValueChange={(next) => onValueChange(next ?? noneValue)}
       disabled={disabled}
     >
-      <SelectTrigger className="w-full">
+      <SelectTrigger className="w-full" size={size}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>

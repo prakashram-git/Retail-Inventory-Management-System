@@ -11,7 +11,7 @@ const productInputSchema = productFormSchema;
 
 export type ProductInput = ProductFormInput;
 
-async function assertSkuIsFree(
+export async function assertSkuIsFree(
   supabase: SupabaseClient,
   storeId: string,
   sku: string,
@@ -33,7 +33,7 @@ async function assertSkuIsFree(
   }
 }
 
-async function assertBarcodeIsFree(
+export async function assertBarcodeIsFree(
   supabase: SupabaseClient,
   storeId: string,
   barcode: string | null,
@@ -102,7 +102,7 @@ export async function createProduct(input: ProductInput): Promise<ActionResult<{
       .select("id")
       .single();
 
-    if (error) return { success: false, error: error.message };
+    if (error) return { success: false, error: friendlyInsertError(error) };
 
     // A non-zero starting stock is a receiving event, same as any other
     // restock — it needs the same audit trail so "how did this product get
