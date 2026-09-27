@@ -23,8 +23,8 @@ export function InventoryKpiGrid({ items }: { items: KpiItem[] }) {
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {items.map((item) => (
-        <Card key={item.label} size="sm" className="transition-shadow hover:shadow-md">
-          <CardContent className="flex items-center gap-3">
+        <Card key={item.label} size="sm" className="rounded-2xl transition-shadow hover:shadow-md">
+          <CardContent className="flex min-h-[88px] items-center gap-3">
             <div
               className={cn(
                 "flex size-10 shrink-0 items-center justify-center rounded-xl",

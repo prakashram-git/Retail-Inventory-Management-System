@@ -12,7 +12,7 @@ export function Header({ role }: { role: UserRole }) {
   const canCustomizeLayout = role === "super_admin" || role === "ui_designer";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between gap-2 border-b bg-background px-3">
+    <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
       <StoreSwitcher />
       <div className="flex items-center gap-2">
         {canCustomizeLayout && (

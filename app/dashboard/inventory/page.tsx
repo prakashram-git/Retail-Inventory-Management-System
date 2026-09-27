@@ -54,10 +54,10 @@ export default async function InventoryPage() {
   ]);
 
   return (
-    <div className="flex flex-col gap-4 p-4 md:p-6">
+    <div className="inventory-screen flex flex-col gap-5 p-4 font-serif md:px-8 md:py-7">
       <div>
-        <h1 className="text-xl font-semibold">Products & Inventory</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="text-2xl font-semibold">Products & Inventory</h1>
+        <p className="text-base text-muted-foreground">
           Track stock, pricing, and margins across every SKU in this store.
         </p>
       </div>

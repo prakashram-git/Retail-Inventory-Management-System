@@ -141,7 +141,7 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
         ]}
       />
 
-      <Card size="sm">
+      <Card size="sm" className="rounded-2xl">
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
             <InputGroup className="sm:max-w-64">
@@ -203,8 +203,8 @@ export function InventoryDashboard({ products, categories, varianceOrders }: Inv
         </div>
       ) : (
         <>
-          <div className="hidden overflow-hidden rounded-xl border md:block">
-            <Table>
+          <div className="hidden overflow-hidden rounded-2xl border md:block">
+            <Table className="min-w-[1120px] [&_td]:px-3 [&_td]:py-3 [&_th]:h-12 [&_th]:px-3">
               <TableHeader>
                 <TableRow>
                   <TableHead />

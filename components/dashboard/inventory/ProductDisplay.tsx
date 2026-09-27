@@ -14,13 +14,13 @@ export function ProductThumbnail({ product }: { product: ProductWithCategory }) 
       <img
         src={product.image_url}
         alt={product.name}
-        className="size-10 shrink-0 rounded-md object-cover ring-1 ring-border"
+        className="size-12 shrink-0 rounded-lg object-cover ring-1 ring-border"
       />
     );
   }
   return (
-    <div className="flex size-10 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground ring-1 ring-border">
-      <Package className="size-4" />
+    <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground ring-1 ring-border">
+      <Package className="size-5" />
     </div>
   );
 }
@@ -68,7 +68,7 @@ export function StockBar({
   const value = Math.min(100, (currentStock / reference) * 100);
 
   return (
-    <div className="flex w-32 flex-col gap-1">
+    <div className="flex w-40 flex-col gap-1">
       <div className="flex items-center justify-between text-xs">
         <span
           className={cn(
