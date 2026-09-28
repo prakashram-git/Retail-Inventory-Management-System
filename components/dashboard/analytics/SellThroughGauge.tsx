@@ -7,17 +7,28 @@ import { RadialBar, RadialBarChart, PolarAngleAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useChartPalette } from "@/lib/utils/chart-palette";
 import { getInventoryHealth } from "@/lib/actions/analytics";
+import type { InventoryHealthMetrics } from "@/lib/analytics/types";
 
 const HEALTHY_MIN = 60;
 const HEALTHY_MAX = 80;
 
-export function SellThroughGauge({ className, style }: { className?: string; style?: React.CSSProperties } = {}) {
+export function SellThroughGauge({
+  className,
+  style,
+  initialHealth = null,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+  /** Pre-fetched server-side (app/dashboard/page.tsx), shared with DeadStockAgingCard — same RPC, fetched once. */
+  initialHealth?: InventoryHealthMetrics | null;
+} = {}) {
   const palette = useChartPalette();
-  const [rate, setRate] = useState<number | null>(null);
+  const [rate, setRate] = useState<number | null>(initialHealth?.sell_through_rate_30d ?? null);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialHealth) return;
     startTransition(async () => {
       setError(null);
       try {
@@ -27,7 +38,7 @@ export function SellThroughGauge({ className, style }: { className?: string; sty
         setError(err instanceof Error ? err.message : "Failed to load sell-through rate");
       }
     });
-  }, []);
+  }, [initialHealth]);
 
   const value = rate ?? 0;
   const inHealthyRange = value >= HEALTHY_MIN && value <= HEALTHY_MAX;

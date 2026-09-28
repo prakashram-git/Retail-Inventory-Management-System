@@ -3,10 +3,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ACTIVE_STORE_COOKIE } from "@/lib/constants";
 import { resolveActiveStoreId } from "@/lib/store/resolve-active-store";
-import { getRangeBounds } from "@/lib/reports/timezone";
+import { getRangeBounds, localDateKey } from "@/lib/reports/timezone";
 import { mapSaleLineRows, type SaleLineJoinRow } from "@/lib/reports/shape";
 import { buildSalesVelocity } from "@/lib/reports/aggregate";
 import { resolveDashboardLayout } from "@/lib/dashboard/resolve-layout";
+import { getExecutiveDigest, getInventoryHealth } from "@/lib/actions/analytics";
 import { HomeDashboard } from "@/components/dashboard/home/HomeDashboard";
 import { LiteLaunchpad } from "@/components/dashboard/home/LiteLaunchpad";
 import { getStoreEffectiveFeatures } from "@/lib/profiles/featureResolver";
@@ -59,6 +60,9 @@ export default async function DashboardPage() {
   const { from: weekFrom, to: weekTo } = getRangeBounds("7d", timezone);
   const { from: thirtyFrom, to: thirtyTo } = getRangeBounds("30d", timezone);
   const ninetyFrom = new Date(todayTo.getTime() - DEAD_STOCK_LOOKBACK_DAYS * 86_400_000);
+  // The store's own calendar day, not the server process's or a browser's —
+  // matches what get_daily_monthly_digest itself uses to derive UTC bounds.
+  const todayDateKey = localDateKey(new Date(), timezone);
 
   const [
     { data: categoryRows },
@@ -69,6 +73,8 @@ export default async function DashboardPage() {
     { data: ninetyDayTouchRows },
     { data: todayShrinkageRows },
     resolvedLayout,
+    executiveDigest,
+    inventoryHealth,
   ] = await Promise.all([
     supabase
       .from("categories")
@@ -122,6 +128,17 @@ export default async function DashboardPage() {
       .in("change_type", ["shrinkage", "offline_variance"])
       .gte("created_at", todayFrom.toISOString()),
     resolveDashboardLayout(supabase, storeId),
+    // Same RPC the Executive Digest widget used to fetch itself, client-side,
+    // after the page had already hydrated — computed here instead so it
+    // streams down with everything else and the widget renders with data on
+    // first paint rather than showing its own separate loading spinner.
+    // Falls back to null (letting the widget fetch it itself, as before)
+    // rather than failing the whole dashboard render on a digest error.
+    getExecutiveDigest(todayDateKey).catch(() => null),
+    // Sell-through Rate and Dead Stock Aging are two separate widgets that
+    // both independently called this same RPC client-side — fetched once
+    // here instead and shared, same reasoning as the digest above.
+    getInventoryHealth().catch(() => null),
   ]);
 
   const categories = (categoryRows ?? []) as Category[];
@@ -199,6 +216,8 @@ export default async function DashboardPage() {
         themeConfig={resolvedLayout.themeConfig}
         canManageCatalog={profile?.role !== "ui_designer"}
         features={features}
+        initialExecutiveDigest={executiveDigest}
+        initialInventoryHealth={inventoryHealth}
       />
     </div>
   );

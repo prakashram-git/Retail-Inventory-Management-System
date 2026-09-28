@@ -23,6 +23,7 @@ import type { ReportsSaleLine, ReportsSaleTouch, StockMovementRow } from "@/lib/
 import type { Category, Product } from "@/lib/types/domain";
 import type { OrderRow } from "@/lib/orders/types";
 import type { DashboardWidgetConfig, DashboardThemeConfig, BorderRadiusStyle } from "@/lib/dashboard/layout-types";
+import type { ExecutiveDigest as ExecutiveDigestData, InventoryHealthMetrics } from "@/lib/analytics/types";
 import { EXECUTIVE_WIDGET_IDS, isExecutiveWidgetEnabled, type StoreFeatures } from "@/lib/profiles/types";
 import { QuickActionsBar } from "@/components/dashboard/QuickActionsBar";
 import { RecentOrdersCard } from "./RecentOrdersCard";
@@ -55,6 +56,10 @@ interface HomeDashboardProps {
   themeConfig: DashboardThemeConfig;
   canManageCatalog: boolean;
   features: StoreFeatures;
+  /** Pre-fetched server-side so the widget renders with data on first paint instead of its own loading spinner. */
+  initialExecutiveDigest: ExecutiveDigestData | null;
+  /** Shared by Sell-through Rate and Dead Stock Aging — same reasoning as initialExecutiveDigest. */
+  initialInventoryHealth: InventoryHealthMetrics | null;
 }
 
 const RADIUS_MAP: Record<BorderRadiusStyle, string> = {
@@ -77,6 +82,8 @@ export function HomeDashboard({
   themeConfig,
   canManageCatalog,
   features,
+  initialExecutiveDigest,
+  initialInventoryHealth,
 }: HomeDashboardProps) {
   const { formatPrice } = useStore();
 
@@ -167,11 +174,22 @@ export function HomeDashboard({
       <RecentOrdersCard orders={recentOrders} className={widgetClassName} style={widgetStyle} />
     ),
     widget_dead_stock: <DeadStockCard rows={deadStock} className={widgetClassName} style={widgetStyle} />,
-    widget_executive_digest: <ExecutiveDigest className={widgetClassName} style={widgetStyle} features={features} />,
+    widget_executive_digest: (
+      <ExecutiveDigest
+        className={widgetClassName}
+        style={widgetStyle}
+        features={features}
+        initialDigest={initialExecutiveDigest}
+      />
+    ),
     widget_cashier_leaderboard: <CashierScorecard className={widgetClassName} style={widgetStyle} />,
-    widget_dead_stock_aging: <DeadStockAgingCard className={widgetClassName} style={widgetStyle} />,
+    widget_dead_stock_aging: (
+      <DeadStockAgingCard className={widgetClassName} style={widgetStyle} initialHealth={initialInventoryHealth} />
+    ),
     widget_hourly_heatmap: <HourlySalesHeatmap className={widgetClassName} style={widgetStyle} />,
-    widget_sell_through: <SellThroughGauge className={widgetClassName} style={widgetStyle} />,
+    widget_sell_through: (
+      <SellThroughGauge className={widgetClassName} style={widgetStyle} initialHealth={initialInventoryHealth} />
+    ),
     widget_pinned_report: (
       <PinnedReportCard
         reportId={layoutConfig.find((w) => w.id === "widget_pinned_report")?.config?.reportId ?? "REP-SALES-01"}

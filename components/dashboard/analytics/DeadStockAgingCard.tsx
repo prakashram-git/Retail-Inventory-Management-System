@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/components/providers/StoreProvider";
 import { getInventoryHealth } from "@/lib/actions/analytics";
-import type { InventoryHealthBucket } from "@/lib/analytics/types";
+import type { InventoryHealthBucket, InventoryHealthMetrics } from "@/lib/analytics/types";
 
 const BUCKET_ORDER: InventoryHealthBucket["bucket"][] = ["30-59", "60-89", "90+"];
 const BUCKET_LABEL: Record<InventoryHealthBucket["bucket"], string> = {
@@ -29,13 +29,23 @@ const BUCKET_COLOR: Record<InventoryHealthBucket["bucket"], string> = {
  * get_inventory_health_metrics rather than the client-side buildDeadInventory
  * aggregate.
  */
-export function DeadStockAgingCard({ className, style }: { className?: string; style?: React.CSSProperties } = {}) {
+export function DeadStockAgingCard({
+  className,
+  style,
+  initialHealth = null,
+}: {
+  className?: string;
+  style?: React.CSSProperties;
+  /** Pre-fetched server-side (app/dashboard/page.tsx), shared with SellThroughGauge — same RPC, fetched once. */
+  initialHealth?: InventoryHealthMetrics | null;
+} = {}) {
   const { formatPrice } = useStore();
-  const [buckets, setBuckets] = useState<InventoryHealthBucket[]>([]);
+  const [buckets, setBuckets] = useState<InventoryHealthBucket[]>(initialHealth?.dead_stock_aging ?? []);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (initialHealth) return;
     startTransition(async () => {
       setError(null);
       try {
@@ -45,7 +55,7 @@ export function DeadStockAgingCard({ className, style }: { className?: string; s
         setError(err instanceof Error ? err.message : "Failed to load inventory health");
       }
     });
-  }, []);
+  }, [initialHealth]);
 
   const byBucket = new Map(buckets.map((b) => [b.bucket, b]));
   const maxCapital = Math.max(1, ...buckets.map((b) => b.capital_locked));

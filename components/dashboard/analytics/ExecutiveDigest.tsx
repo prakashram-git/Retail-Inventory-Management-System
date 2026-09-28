@@ -97,33 +97,53 @@ export function ExecutiveDigest({
   className,
   style,
   features,
+  initialDigest = null,
 }: {
   className?: string;
   style?: React.CSSProperties;
   features: StoreFeatures;
+  /** Pre-fetched server-side (app/dashboard/page.tsx) so this renders with data on
+   * first paint instead of a client round trip — the "today" and "mtd" tabs
+   * both come from the same RPC response, so both are covered by one fetch. */
+  initialDigest?: ExecutiveDigestData | null;
 }) {
   const { formatPrice } = useStore();
   const [segment, setSegment] = useState<Segment>("today");
-  const [digest, setDigest] = useState<ExecutiveDigestData | null>(null);
+  const [digest, setDigest] = useState<ExecutiveDigestData | null>(initialDigest);
   const [windowDaily, setWindowDaily] = useState<ExecutiveDigestDaily | null>(null);
   const [isPending, startTransition] = useTransition();
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // "Today"/"MTD" share one RPC response (already in `digest` if the server
+  // provided one) — only fetch it client-side as a fallback when that's
+  // missing, not on every mount or every tab switch between the two.
   useEffect(() => {
+    if (digest || segment === "30d") return;
     startTransition(async () => {
       setLoadError(null);
       try {
-        if (segment === "30d") {
-          setWindowDaily(await getWindowDigest(30));
-        } else {
-          const targetDate = new Date().toLocaleDateString("en-CA");
-          setDigest(await getExecutiveDigest(targetDate));
-        }
+        const targetDate = new Date().toLocaleDateString("en-CA");
+        setDigest(await getExecutiveDigest(targetDate));
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : "Failed to load the digest");
       }
     });
-  }, [segment]);
+  }, [digest, segment]);
+
+  // "Last 30 Days" isn't part of that RPC — fetched lazily, once, only when
+  // the cashier actually opens that tab (and cached in state afterward, so
+  // flipping back and forth doesn't re-fetch it either).
+  useEffect(() => {
+    if (segment !== "30d" || windowDaily) return;
+    startTransition(async () => {
+      setLoadError(null);
+      try {
+        setWindowDaily(await getWindowDigest(30));
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Failed to load the digest");
+      }
+    });
+  }, [segment, windowDaily]);
 
   const daily: ExecutiveDigestDaily | null =
     segment === "30d" ? windowDaily : segment === "today" ? (digest?.daily ?? null) : null;

@@ -2,8 +2,6 @@
 
 import { requireStoreContext } from "./shared";
 import { localHour, localDayOfWeek, getRangeBounds } from "@/lib/reports/timezone";
-import { mapSaleLineRows, type SaleLineJoinRow } from "@/lib/reports/shape";
-import { buildKpiSummary } from "@/lib/reports/aggregate";
 import type {
   ExecutiveDigest,
   ExecutiveDigestDaily,
@@ -12,14 +10,24 @@ import type {
   HeatmapCell,
 } from "@/lib/analytics/types";
 
-const SALE_LINE_COLUMNS =
-  "order_id, quantity, refunded_quantity, unit_price, unit_cost, product:products(id, name, sku, category_id), order:orders!inner(created_at, invoice_number, status, store_id, payment_method, cashier:profiles(full_name, email))";
+interface LeanSaleLineRow {
+  order_id: string;
+  quantity: number;
+  refunded_quantity: number;
+  unit_price: number;
+  unit_cost: number;
+}
 
 /**
  * "Last 30 Days" isn't one of get_daily_monthly_digest's two windows (daily,
- * MTD) — rather than add a fourth RPC for a single extra tab, this reuses
- * the same JS aggregation (buildKpiSummary) the Reports page already relies
- * on, over a rolling 30-day query.
+ * MTD) — rather than add a fourth RPC for a single extra tab, this
+ * aggregates over a rolling 30-day query itself (same math
+ * buildKpiSummary/the Reports page uses, replicated inline rather than
+ * reused, because this KPI-only view doesn't need the product/cashier joins
+ * mapSaleLineRows requires for the full ReportsSaleLine shape — dropping
+ * them measurably speeds up what was previously the slowest tab in the
+ * digest, a 3+ second load pulling every line item's product and cashier
+ * details across 30 days just to sum five numbers).
  */
 export async function getWindowDigest(days: 30): Promise<ExecutiveDigestDaily> {
   const { supabase, storeId } = await requireStoreContext();
@@ -30,7 +38,7 @@ export async function getWindowDigest(days: 30): Promise<ExecutiveDigestDaily> {
   const [{ data: rows, error }, { data: orderRows, error: orderError }] = await Promise.all([
     supabase
       .from("order_items")
-      .select(SALE_LINE_COLUMNS)
+      .select("order_id, quantity, refunded_quantity, unit_price, unit_cost, order:orders!inner(created_at, status, store_id)")
       .eq("order.store_id", storeId)
       .neq("order.status", "voided")
       .gte("order.created_at", from.toISOString())
@@ -46,24 +54,38 @@ export async function getWindowDigest(days: 30): Promise<ExecutiveDigestDaily> {
   if (error) throw new Error(error.message);
   if (orderError) throw new Error(orderError.message);
 
-  const lines = mapSaleLineRows((rows ?? []) as unknown as SaleLineJoinRow[]);
-  const kpis = buildKpiSummary(lines, []);
+  const lines = (rows ?? []) as unknown as LeanSaleLineRow[];
 
-  const totalUnits = lines.reduce((sum, l) => sum + Math.max(0, l.quantity - l.refunded_quantity), 0);
-  const grossSales = lines.reduce((sum, l) => sum + l.quantity * l.unit_price, 0);
+  let grossSales = 0;
+  let netRevenue = 0;
+  let netProfit = 0;
+  let totalUnits = 0;
+  const orderIds = new Set<string>();
+
+  for (const line of lines) {
+    grossSales += line.quantity * line.unit_price;
+    const netQty = Math.max(0, line.quantity - line.refunded_quantity);
+    if (netQty <= 0) continue;
+    netRevenue += netQty * line.unit_price;
+    netProfit += netQty * (line.unit_price - line.unit_cost);
+    totalUnits += netQty;
+    orderIds.add(line.order_id);
+  }
+
+  const orderCount = orderIds.size;
+  const averageOrderValue = orderCount > 0 ? netRevenue / orderCount : 0;
   const discountTotal = (orderRows ?? []).reduce((sum, o) => sum + (o.discount ?? 0), 0);
   const taxCollected = (orderRows ?? []).reduce((sum, o) => sum + (o.tax ?? 0), 0);
 
   return {
     gross_sales: Math.round(grossSales * 100) / 100,
-    net_sales: Math.round(kpis.grossRevenue * 100) / 100,
-    order_count: kpis.orderCount,
-    aov: Math.round((kpis.averageOrderValue ?? 0) * 100) / 100,
-    upt: kpis.orderCount > 0 ? Math.round((totalUnits / kpis.orderCount) * 100) / 100 : 0,
-    cogs: Math.round((kpis.grossRevenue - kpis.netProfit) * 100) / 100,
-    gross_profit: Math.round(kpis.netProfit * 100) / 100,
-    gross_margin_pct:
-      kpis.grossRevenue > 0 ? Math.round((kpis.netProfit / kpis.grossRevenue) * 10000) / 100 : 0,
+    net_sales: Math.round(netRevenue * 100) / 100,
+    order_count: orderCount,
+    aov: Math.round(averageOrderValue * 100) / 100,
+    upt: orderCount > 0 ? Math.round((totalUnits / orderCount) * 100) / 100 : 0,
+    cogs: Math.round((netRevenue - netProfit) * 100) / 100,
+    gross_profit: Math.round(netProfit * 100) / 100,
+    gross_margin_pct: netRevenue > 0 ? Math.round((netProfit / netRevenue) * 10000) / 100 : 0,
     discount_total: Math.round(discountTotal * 100) / 100,
     discount_leakage_pct: grossSales > 0 ? Math.round((discountTotal / grossSales) * 10000) / 100 : 0,
     tax_collected: Math.round(taxCollected * 100) / 100,
