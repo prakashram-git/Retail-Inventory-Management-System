@@ -71,7 +71,7 @@ export function LowStockCard({
           rows.map(({ product, threshold, status, unitsPerDay, suggestedQuantity }) => (
             <div
               key={product.id}
-              className="flex items-center justify-between gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-muted/50"
+              className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <div className={statusIconClass(status)}>
@@ -82,14 +82,14 @@ export function LowStockCard({
                   )}
                 </div>
                 <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-sm font-medium">{product.name}</span>
-                  <span className="font-mono text-xs text-muted-foreground">{product.sku}</span>
+                  <span className="truncate text-[11.2px] font-medium">{product.name}</span>
+                  <span className="font-mono text-[9.6px] text-muted-foreground">{product.sku}</span>
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Badge
                   variant={status === "out" ? "destructive" : "outline"}
-                  className="shrink-0 gap-1 text-xs"
+                  className="shrink-0 gap-1 text-[9.6px]"
                 >
                   {status === "out" ? "Out of stock" : `${product.current_stock} left · min ${threshold}`}
                 </Badge>
@@ -97,7 +97,7 @@ export function LowStockCard({
                   <Tooltip>
                     <TooltipTrigger
                       render={
-                        <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                        <span className="flex items-center gap-1 text-[9.6px] font-medium text-primary">
                           <PackagePlus className="size-3" />
                           Order +{suggestedQuantity}
                         </span>

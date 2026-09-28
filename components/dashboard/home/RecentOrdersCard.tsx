@@ -51,19 +51,19 @@ export function RecentOrdersCard({ orders, className, style }: RecentOrdersCardP
           orders.map((order) => (
             <div
               key={order.id}
-              className="flex items-center justify-between gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50"
+              className="flex items-center justify-between gap-3 rounded-lg px-2 py-[6.4px] transition-colors hover:bg-muted/50"
             >
               <div className="flex min-w-0 flex-col">
-                <span className="truncate font-mono text-sm">{order.invoice_number}</span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate font-mono text-[11.2px]">{order.invoice_number}</span>
+                <span className="truncate text-[9.6px] text-muted-foreground">
                   {order.cashier?.full_name ?? order.cashier?.email ?? "Unknown cashier"} ·{" "}
                   {PAYMENT_LABEL[order.payment_method]}
                   {order.is_offline_sync && " · Offline synced"}
                 </span>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
-                <span className="font-mono text-sm font-medium">{formatPrice(order.total)}</span>
-                <Badge variant={ORDER_STATUS_VARIANT[order.status]} className="text-xs">
+                <span className="font-mono text-[11.2px] font-medium">{formatPrice(order.total)}</span>
+                <Badge variant={ORDER_STATUS_VARIANT[order.status]} className="text-[9.6px]">
                   {ORDER_STATUS_LABEL[order.status]}
                 </Badge>
               </div>
