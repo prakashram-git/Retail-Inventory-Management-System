@@ -91,10 +91,16 @@ export interface ProductWithCategory extends Product {
 export interface Customer {
   id: string;
   store_id: string;
+  first_name: string;
+  last_name: string | null;
+  /** Generated column (first_name + last_name) — read-only, never written directly. */
   full_name: string;
   phone: string | null;
   email: string | null;
+  company: string | null;
   notes: string | null;
+  accepts_email_marketing: boolean;
+  accepts_sms_marketing: boolean;
   is_active: boolean;
   created_at: string;
   updated_at: string;

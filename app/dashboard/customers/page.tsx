@@ -28,9 +28,12 @@ export default async function CustomersPage() {
 
   const { data: customers } = await supabase
     .from("customers")
-    .select("id, store_id, full_name, phone, email, notes, is_active, created_at, updated_at")
+    .select(
+      "id, store_id, first_name, last_name, full_name, phone, email, company, notes, accepts_email_marketing, accepts_sms_marketing, is_active, created_at, updated_at"
+    )
     .eq("store_id", storeId)
-    .order("full_name");
+    .order("last_name")
+    .order("first_name");
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6">

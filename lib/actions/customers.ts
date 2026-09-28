@@ -11,6 +11,19 @@ export interface CustomerSummary {
   email: string | null;
 }
 
+/** Both customers_crm_fields.sql unique indexes name the colliding field, so the
+ * Postgres error message itself tells us which one — no need to guess or re-query. */
+function duplicateFieldError(error: { code?: string; message: string }): Error | null {
+  if (error.code !== "23505") return null;
+  if (error.message.includes("uq_customers_store_email_case_insensitive")) {
+    return new Error("A customer with this email address already exists.");
+  }
+  if (error.message.includes("uq_customers_store_phone_case_insensitive")) {
+    return new Error("A customer with this phone number already exists.");
+  }
+  return new Error("A customer with these details already exists.");
+}
+
 /** Cashier-reachable: used by the POS "Add customer" search-as-you-type panel. */
 export async function searchCustomers(query: string): Promise<CustomerSummary[]> {
   const { supabase, storeId } = await requirePosStoreContext();
@@ -26,7 +39,8 @@ export async function searchCustomers(query: string): Promise<CustomerSummary[]>
     .eq("store_id", storeId)
     .eq("is_active", true)
     .or(`full_name.ilike.%${trimmed}%,phone.ilike.%${trimmed}%,email.ilike.%${trimmed}%`)
-    .order("full_name")
+    .order("last_name")
+    .order("first_name")
     .limit(10);
 
   if (error) throw new Error(error.message);
@@ -45,10 +59,7 @@ export async function createCustomer(input: CustomerFormInput): Promise<Customer
     .single();
 
   if (error) {
-    if (error.code === "23505") {
-      throw new Error("A customer with this phone number already exists.");
-    }
-    throw new Error(error.message);
+    throw duplicateFieldError(error) ?? new Error(error.message);
   }
 
   revalidatePath("/dashboard/customers");
@@ -67,10 +78,7 @@ export async function updateCustomer(id: string, input: CustomerFormInput) {
     .eq("store_id", storeId);
 
   if (error) {
-    if (error.code === "23505") {
-      throw new Error("A customer with this phone number already exists.");
-    }
-    throw new Error(error.message);
+    throw duplicateFieldError(error) ?? new Error(error.message);
   }
 
   revalidatePath("/dashboard/customers");

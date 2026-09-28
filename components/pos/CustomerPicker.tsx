@@ -26,7 +26,8 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
   const [results, setResults] = useState<CustomerSummary[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
-  const [newName, setNewName] = useState("");
+  const [newFirstName, setNewFirstName] = useState("");
+  const [newLastName, setNewLastName] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -59,7 +60,8 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
     setQuery("");
     setResults([]);
     setShowRegisterForm(false);
-    setNewName("");
+    setNewFirstName("");
+    setNewLastName("");
     setNewPhone("");
     setNewEmail("");
   }
@@ -70,14 +72,15 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
   }
 
   async function registerAndSelect() {
-    if (!newName.trim()) {
+    if (!newFirstName.trim()) {
       toast.error("Customer name is required");
       return;
     }
     setIsRegistering(true);
     try {
       const created = await createCustomer({
-        full_name: newName.trim(),
+        first_name: newFirstName.trim(),
+        last_name: newLastName.trim() || null,
         phone: newPhone.trim() || null,
         email: newEmail.trim() || null,
       });
@@ -85,15 +88,19 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
       select(created);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Could not register customer";
-      if (message.includes("already exists") && newPhone.trim()) {
-        // Dead end otherwise: a cashier mid-sale who mistypes a "new"
-        // customer's phone that's already on file would just hit an error
-        // and have to redo the search by hand. Drop back into search mode
-        // with that phone pre-filled instead, so the existing match is one
-        // tap away.
+      // Dead end otherwise: a cashier mid-sale who mistypes a "new"
+      // customer's phone/email that's already on file would just hit an
+      // error and have to redo the search by hand. Drop back into search
+      // mode with that field pre-filled instead, so the existing match is
+      // one tap away.
+      if (message.includes("phone number already exists") && newPhone.trim()) {
         toast.error("That phone number is already registered — showing the match below.");
         setShowRegisterForm(false);
         setQuery(newPhone.trim());
+      } else if (message.includes("email address already exists") && newEmail.trim()) {
+        toast.error("That email is already registered — showing the match below.");
+        setShowRegisterForm(false);
+        setQuery(newEmail.trim());
       } else {
         toast.error(message);
       }
@@ -181,14 +188,25 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
               </Button>
             ) : (
               <div className="flex flex-col gap-2 rounded-lg border p-3">
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="new-customer-name">Name</Label>
-                  <Input
-                    id="new-customer-name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    disabled={isRegistering}
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="new-customer-first-name">First name</Label>
+                    <Input
+                      id="new-customer-first-name"
+                      value={newFirstName}
+                      onChange={(e) => setNewFirstName(e.target.value)}
+                      disabled={isRegistering}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="new-customer-last-name">Last name</Label>
+                    <Input
+                      id="new-customer-last-name"
+                      value={newLastName}
+                      onChange={(e) => setNewLastName(e.target.value)}
+                      disabled={isRegistering}
+                    />
+                  </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="new-customer-phone">Phone (optional)</Label>

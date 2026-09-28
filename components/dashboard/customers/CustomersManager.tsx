@@ -23,7 +23,7 @@ export function CustomersManager({ customers }: { customers: Customer[] }) {
     const query = search.trim().toLowerCase();
     if (!query) return customers;
     return customers.filter((c) =>
-      [c.full_name, c.phone, c.email].some((field) => field?.toLowerCase().includes(query))
+      [c.full_name, c.phone, c.email, c.company].some((field) => field?.toLowerCase().includes(query))
     );
   }, [customers, search]);
 
@@ -88,7 +88,14 @@ export function CustomersManager({ customers }: { customers: Customer[] }) {
             <TableBody>
               {filtered.map((customer) => (
                 <TableRow key={customer.id}>
-                  <TableCell className="font-medium">{customer.full_name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex flex-col">
+                      <span>{customer.full_name}</span>
+                      {customer.company && (
+                        <span className="text-xs font-normal text-muted-foreground">{customer.company}</span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{customer.phone ?? "—"}</TableCell>
                   <TableCell className="text-xs">{customer.email ?? "—"}</TableCell>
                   <TableCell>
