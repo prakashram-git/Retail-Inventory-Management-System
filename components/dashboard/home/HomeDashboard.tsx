@@ -197,6 +197,17 @@ export function HomeDashboard({
         style={widgetStyle}
       />
     ),
+    widget_top_products: (
+      <TopProductsCard products={topProducts} className={widgetClassName} style={widgetStyle} />
+    ),
+    widget_category_overview: (
+      <CategoryOverviewCard
+        categories={categories}
+        productCountById={productCountById}
+        className={widgetClassName}
+        style={widgetStyle}
+      />
+    ),
   };
 
   const executiveIds = new Set<string>(EXECUTIVE_WIDGET_IDS);
@@ -230,11 +241,6 @@ export function HomeDashboard({
             {widgetRegistry[widget.id]}
           </div>
         ))}
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <TopProductsCard products={topProducts} />
-        <CategoryOverviewCard categories={categories} productCountById={productCountById} />
       </div>
 
       {categories.length === 0 && products.length === 0 && (

@@ -113,6 +113,18 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
     description: "Any one of the 24 Report Library templates, pinned to the dashboard (pick which one in the widget itself)",
     kind: "widget",
   },
+  {
+    id: "widget_top_products",
+    label: "Top Sellers This Week",
+    description: "Best-selling products by net revenue, last 7 days",
+    kind: "widget",
+  },
+  {
+    id: "widget_category_overview",
+    label: "Categories",
+    description: "Top-level categories ranked by product count",
+    kind: "widget",
+  },
 ];
 
 export const DEFAULT_LAYOUT_CONFIG: DashboardWidgetConfig[] = [
@@ -129,11 +141,13 @@ export const DEFAULT_LAYOUT_CONFIG: DashboardWidgetConfig[] = [
   { id: "widget_sell_through", visible: true, x: 8, y: 13, w: 4, h: 4 },
   { id: "widget_recent_orders", visible: true, x: 0, y: 17, w: 7, h: 4 },
   { id: "widget_dead_stock", visible: true, x: 7, y: 17, w: 5, h: 4 },
+  { id: "widget_top_products", visible: true, x: 0, y: 21, w: 6, h: 4 },
+  { id: "widget_category_overview", visible: true, x: 6, y: 21, w: 6, h: 4 },
   // Hidden by default (no universal default report makes sense per store) —
   // included here so it always appears in the layout builder's widget list,
   // ready for a designer to toggle visible and pick a report, without
   // needing a separate "add a new widget" flow.
-  { id: "widget_pinned_report", visible: false, x: 0, y: 21, w: 12, h: 4, config: { reportId: "REP-SALES-01" } },
+  { id: "widget_pinned_report", visible: false, x: 0, y: 25, w: 12, h: 4, config: { reportId: "REP-SALES-01" } },
 ];
 
 /**

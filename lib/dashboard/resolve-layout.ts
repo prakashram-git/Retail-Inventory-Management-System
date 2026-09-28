@@ -4,6 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   DEFAULT_LAYOUT_CONFIG,
   DEFAULT_THEME_CONFIG,
+  WIDGET_CATALOG,
   type DashboardWidgetConfig,
   type DashboardThemeConfig,
 } from "./layout-types";
@@ -28,6 +29,24 @@ export interface ResolvedDashboardLayout {
   layoutConfig: DashboardWidgetConfig[];
   themeConfig: DashboardThemeConfig;
   isCustom: boolean;
+}
+
+/**
+ * A store's saved layout_config is a snapshot from whenever it was last
+ * published — it has no entry for a widget added to WIDGET_CATALOG after
+ * that (Top Sellers This Week / Categories were previously hardcoded,
+ * unconditionally rendered outside the layout system entirely, and only
+ * joined the catalog later). Without this, adding a widget to the catalog
+ * would make it vanish from any store that already has a saved layout,
+ * instead of just appearing at the end of it. Appends each catalog widget
+ * missing from `saved`, using its DEFAULT_LAYOUT_CONFIG position.
+ */
+function backfillMissingWidgets(saved: DashboardWidgetConfig[]): DashboardWidgetConfig[] {
+  const savedIds = new Set(saved.map((w) => w.id));
+  const missing = WIDGET_CATALOG.filter((entry) => !savedIds.has(entry.id))
+    .map((entry) => DEFAULT_LAYOUT_CONFIG.find((d) => d.id === entry.id))
+    .filter((entry): entry is DashboardWidgetConfig => entry !== undefined);
+  return missing.length > 0 ? [...saved, ...missing] : saved;
 }
 
 /**
@@ -72,8 +91,13 @@ export async function resolveDashboardLayout(
   const layoutParse = z.array(widgetConfigSchema).safeParse(row.layout_config);
   const themeParse = themeConfigSchema.safeParse(row.theme_config);
 
+  const layoutConfig =
+    layoutParse.success && layoutParse.data.length > 0
+      ? backfillMissingWidgets(layoutParse.data)
+      : DEFAULT_LAYOUT_CONFIG;
+
   return {
-    layoutConfig: layoutParse.success && layoutParse.data.length > 0 ? layoutParse.data : DEFAULT_LAYOUT_CONFIG,
+    layoutConfig,
     themeConfig: themeParse.success ? themeParse.data : DEFAULT_THEME_CONFIG,
     isCustom: true,
   };

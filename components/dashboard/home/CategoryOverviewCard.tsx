@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCategoryIcon } from "@/lib/utils/category-icons";
+import { cn } from "@/lib/utils";
 import type { Category } from "@/lib/types/domain";
 
 interface CategorySummary {
@@ -13,9 +14,16 @@ interface CategorySummary {
   productCount: number;
 }
 
-export function CategoryOverviewCard({ categories, productCountById }: {
+export function CategoryOverviewCard({
+  categories,
+  productCountById,
+  className,
+  style,
+}: {
   categories: Category[];
   productCountById: Map<string, number>;
+  className?: string;
+  style?: React.CSSProperties;
 }) {
   const rows: CategorySummary[] = categories
     .filter((c) => !c.parent_id)
@@ -24,7 +32,7 @@ export function CategoryOverviewCard({ categories, productCountById }: {
     .slice(0, 6);
 
   return (
-    <Card size="sm" className="flex flex-col transition-shadow hover:shadow-md">
+    <Card size="sm" className={cn("flex flex-col transition-shadow hover:shadow-md", className)} style={style}>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Categories</CardTitle>
         <Button
