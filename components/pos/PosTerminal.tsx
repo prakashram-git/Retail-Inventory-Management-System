@@ -84,6 +84,7 @@ export function PosTerminal({
   }
 
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [discount, setDiscount] = useState(0);
   const [sisterStoreProduct, setSisterStoreProduct] = useState<PosProduct | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [closeShiftOpen, setCloseShiftOpen] = useState(false);
@@ -97,6 +98,9 @@ export function PosTerminal({
   const { trainingMode } = useHelpCenter();
   const { registerPos, lock, locked } = useSessionGuard();
   const canManageOthersCarts = role === "super_admin" || role === "store_manager";
+  // Matches the "Close Shift" / dashboard-link gating pattern elsewhere in
+  // this header — cashiers can't apply their own discounts, only managers/admins.
+  const canApplyDiscount = role !== "cashier";
   // Bumped whenever the terminal transitions to unlocked, so
   // OrphanedCartPrompt re-checks Dexie for a cart another cashier parked
   // while this unit sat locked (it can't just check once on mount).
@@ -121,6 +125,7 @@ export function PosTerminal({
       setProducts(trainingSnapshot.products);
       setSession(trainingSnapshot.session);
       setCart([]);
+      setDiscount(0);
       setTrainingSnapshot(null);
     }
   }
@@ -137,7 +142,12 @@ export function PosTerminal({
   // Expose cart/register state to the session guard so the sign-out dialog can
   // warn about it (and park the cart), and clear it when this view unmounts.
   const registerOpenForGuard = session !== "loading" && session !== null;
-  const cartTotalForGuard = calculateCartTotals(cart, taxRatePercent, taxModel, 0).total;
+  const cartTotalForGuard = calculateCartTotals(
+    cart,
+    taxRatePercent,
+    taxModel,
+    cart.length > 0 ? discount : 0
+  ).total;
   useEffect(() => {
     registerPos({ cart, drawerOpen: registerOpenForGuard, unitNumber, cartTotal: cartTotalForGuard });
   }, [registerPos, cart, registerOpenForGuard, unitNumber, cartTotalForGuard]);
@@ -244,6 +254,7 @@ export function PosTerminal({
 
   function clearCart() {
     setCart([]);
+    setDiscount(0);
   }
 
   function handleCheckoutSuccess() {
@@ -255,6 +266,7 @@ export function PosTerminal({
       })
     );
     setCart([]);
+    setDiscount(0);
     // Training sales never touched the server, so there is nothing to refresh.
     if (isOnline && !trainingMode) router.refresh();
     if (lockOnOrderComplete && !trainingMode) lock("order_completed");
@@ -268,7 +280,11 @@ export function PosTerminal({
     setCloseShiftOpen(true);
   }
 
-  const totals = calculateCartTotals(cart, taxRatePercent, taxModel, 0);
+  // Discount only applies to a live cart — if every line was removed one at a
+  // time (rather than via Clear) rather than leaving a stale discount that
+  // would silently reattach itself once new items are added.
+  const effectiveDiscount = cart.length > 0 ? discount : 0;
+  const totals = calculateCartTotals(cart, taxRatePercent, taxModel, effectiveDiscount);
   const registerOpen = session !== "loading" && session !== null;
 
   return (
@@ -351,6 +367,9 @@ export function PosTerminal({
             onClear={clearCart}
             onCheckout={() => setCheckoutOpen(true)}
             checkoutDisabled={!registerOpen}
+            canApplyDiscount={canApplyDiscount}
+            discount={effectiveDiscount}
+            onDiscountChange={setDiscount}
           />
         </div>
       </div>
@@ -364,6 +383,9 @@ export function PosTerminal({
         onClear={clearCart}
         onCheckout={() => setCheckoutOpen(true)}
         checkoutDisabled={!registerOpen}
+        canApplyDiscount={canApplyDiscount}
+        discount={effectiveDiscount}
+        onDiscountChange={setDiscount}
       />
 
       <CheckoutModal
@@ -411,6 +433,7 @@ export function PosTerminal({
             setJustClosedShift(true);
             setSession(null);
             setCart([]);
+            setDiscount(0);
             if (lockOnDrawerClose) lock("drawer_closed");
           }}
         />

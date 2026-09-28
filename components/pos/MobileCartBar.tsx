@@ -18,6 +18,9 @@ interface MobileCartBarProps {
   onClear: () => void;
   onCheckout: () => void;
   checkoutDisabled?: boolean;
+  canApplyDiscount: boolean;
+  discount: number;
+  onDiscountChange: (value: number) => void;
 }
 
 export function MobileCartBar({
@@ -29,6 +32,9 @@ export function MobileCartBar({
   onClear,
   onCheckout,
   checkoutDisabled,
+  canApplyDiscount,
+  discount,
+  onDiscountChange,
 }: MobileCartBarProps) {
   const { formatPrice } = useStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -63,6 +69,9 @@ export function MobileCartBar({
             onRemove={onRemove}
             onClear={onClear}
             checkoutDisabled={checkoutDisabled}
+            canApplyDiscount={canApplyDiscount}
+            discount={discount}
+            onDiscountChange={onDiscountChange}
             onCheckout={() => {
               setDrawerOpen(false);
               onCheckout();

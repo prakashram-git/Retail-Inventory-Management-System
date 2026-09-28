@@ -1,9 +1,11 @@
 "use client";
 
-import { Minus, Plus, ShoppingCart, Trash2, X } from "lucide-react";
+import { useState } from "react";
+import { Minus, Plus, ShoppingCart, Tag, Trash2, X } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import type { CartTotals } from "@/lib/pos/pricing";
 import type { CartLine } from "@/lib/pos/types";
 
@@ -16,6 +18,10 @@ interface CartPanelProps {
   onClear: () => void;
   onCheckout: () => void;
   checkoutDisabled?: boolean;
+  /** Store manager / super admin only — matches how "Close Shift" etc. are gated elsewhere in PosTerminal. */
+  canApplyDiscount: boolean;
+  discount: number;
+  onDiscountChange: (value: number) => void;
 }
 
 export function CartPanel({
@@ -27,8 +33,30 @@ export function CartPanel({
   onClear,
   onCheckout,
   checkoutDisabled,
+  canApplyDiscount,
+  discount,
+  onDiscountChange,
 }: CartPanelProps) {
   const { formatPrice } = useStore();
+  const [discountInputOpen, setDiscountInputOpen] = useState(false);
+  const [discountDraft, setDiscountDraft] = useState("");
+
+  function openDiscountInput() {
+    setDiscountDraft(discount > 0 ? String(discount) : "");
+    setDiscountInputOpen(true);
+  }
+
+  function applyDiscount() {
+    const requested = Math.max(0, Number(discountDraft) || 0);
+    // Can't discount past a $0 total — matches calculateCartTotals' own floor.
+    onDiscountChange(Math.min(requested, totals.subtotal + totals.tax));
+    setDiscountInputOpen(false);
+  }
+
+  function removeDiscount() {
+    onDiscountChange(0);
+    setDiscountInputOpen(false);
+  }
 
   return (
     <div className="flex h-full flex-col" data-tour="pos-cart">
@@ -113,10 +141,60 @@ export function CartPanel({
           <span>Tax ({totals.taxRatePercent}%{totals.inclusive ? " incl." : ""})</span>
           <span className="font-mono">{formatPrice(totals.tax)}</span>
         </div>
-        {totals.discount > 0 && (
-          <div className="flex justify-between text-muted-foreground">
-            <span>Discount</span>
-            <span className="font-mono">-{formatPrice(totals.discount)}</span>
+        {canApplyDiscount && cart.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            {discountInputOpen ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">Discount $</span>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  autoFocus
+                  value={discountDraft}
+                  onChange={(e) => setDiscountDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && applyDiscount()}
+                  className="h-7 w-24 font-mono text-xs"
+                />
+                <Button size="xs" onClick={applyDiscount}>
+                  Apply
+                </Button>
+                <Button size="xs" variant="ghost" onClick={() => setDiscountInputOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            ) : totals.discount > 0 ? (
+              <div className="flex items-center justify-between text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={openDiscountInput}
+                  className="flex items-center gap-1 hover:text-foreground"
+                >
+                  <Tag className="size-3" />
+                  Discount
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-mono">-{formatPrice(totals.discount)}</span>
+                  <button
+                    type="button"
+                    onClick={removeDiscount}
+                    aria-label="Remove discount"
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={openDiscountInput}
+                className="flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Tag className="size-3" />
+                Add discount
+              </button>
+            )}
           </div>
         )}
         <div className="flex justify-between text-base font-semibold">
