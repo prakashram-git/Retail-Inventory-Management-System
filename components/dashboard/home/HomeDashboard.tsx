@@ -208,6 +208,15 @@ export function HomeDashboard({
         style={widgetStyle}
       />
     ),
+    widget_quick_actions: (
+      <QuickActionsBar
+        categories={categories}
+        canManageCatalog={canManageCatalog}
+        initialFeatures={features}
+        className={widgetClassName}
+        style={widgetStyle}
+      />
+    ),
   };
 
   const executiveIds = new Set<string>(EXECUTIVE_WIDGET_IDS);
@@ -224,8 +233,6 @@ export function HomeDashboard({
 
   return (
     <div className="flex flex-col gap-4">
-      <QuickActionsBar categories={categories} canManageCatalog={canManageCatalog} initialFeatures={features} />
-
       <div
         className="grid grid-cols-12 gap-4"
         style={

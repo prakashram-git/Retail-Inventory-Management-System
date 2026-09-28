@@ -5,6 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { BarChart3, FolderPlus, Loader2, Plus, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { Category, CategoryWithCount } from "@/lib/types/domain";
 import type { StoreFeatures } from "@/lib/profiles/types";
 
@@ -47,11 +48,15 @@ export function QuickActionsBar({
   categories,
   canManageCatalog,
   initialFeatures,
+  className,
+  style,
 }: {
   categories: Category[];
   /** ui_designer can't mutate products/categories, so those tiles are hidden for them. */
   canManageCatalog: boolean;
   initialFeatures: StoreFeatures;
+  className?: string;
+  style?: React.CSSProperties;
 }) {
   const [productSheetOpen, setProductSheetOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
@@ -72,7 +77,7 @@ export function QuickActionsBar({
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className={cn("grid grid-cols-2 gap-2 rounded-xl p-3 sm:grid-cols-4", className)} style={style}>
         {showNewProduct && (
           <Button variant="outline" className={TILE} onClick={() => setProductSheetOpen(true)}>
             <Icon>

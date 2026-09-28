@@ -49,6 +49,12 @@ interface WidgetCatalogEntry {
  * HomeDashboard.tsx knows how to render (see WIDGET_ID list there).
  */
 export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
+  {
+    id: "widget_quick_actions",
+    label: "Quick Actions",
+    description: "New product / New category / Open POS / View reports shortcut tiles",
+    kind: "widget",
+  },
   { id: "metric_gross_revenue", label: "Gross Revenue", description: "Today's gross revenue", kind: "metric" },
   { id: "metric_net_profit", label: "Net Profit", description: "Today's net profit", kind: "metric" },
   { id: "metric_aov", label: "Average Order Value", description: "Today's AOV", kind: "metric" },
@@ -128,26 +134,27 @@ export const WIDGET_CATALOG: WidgetCatalogEntry[] = [
 ];
 
 export const DEFAULT_LAYOUT_CONFIG: DashboardWidgetConfig[] = [
-  { id: "widget_executive_digest", visible: true, x: 0, y: 0, w: 12, h: 3 },
-  { id: "metric_gross_revenue", visible: true, x: 0, y: 3, w: 3, h: 2 },
-  { id: "metric_net_profit", visible: true, x: 3, y: 3, w: 3, h: 2 },
-  { id: "metric_aov", visible: true, x: 6, y: 3, w: 3, h: 2 },
-  { id: "metric_shrinkage", visible: true, x: 9, y: 3, w: 3, h: 2 },
-  { id: "chart_revenue_vs_cogs", visible: true, x: 0, y: 5, w: 8, h: 4 },
-  { id: "widget_restock_alerts", visible: true, x: 8, y: 5, w: 4, h: 4 },
-  { id: "widget_cashier_leaderboard", visible: true, x: 0, y: 9, w: 7, h: 4 },
-  { id: "widget_dead_stock_aging", visible: true, x: 7, y: 9, w: 5, h: 4 },
-  { id: "widget_hourly_heatmap", visible: true, x: 0, y: 13, w: 8, h: 4 },
-  { id: "widget_sell_through", visible: true, x: 8, y: 13, w: 4, h: 4 },
-  { id: "widget_recent_orders", visible: true, x: 0, y: 17, w: 7, h: 4 },
-  { id: "widget_dead_stock", visible: true, x: 7, y: 17, w: 5, h: 4 },
-  { id: "widget_top_products", visible: true, x: 0, y: 21, w: 6, h: 4 },
-  { id: "widget_category_overview", visible: true, x: 6, y: 21, w: 6, h: 4 },
+  { id: "widget_quick_actions", visible: true, x: 0, y: 0, w: 12, h: 2 },
+  { id: "widget_executive_digest", visible: true, x: 0, y: 2, w: 12, h: 3 },
+  { id: "metric_gross_revenue", visible: true, x: 0, y: 5, w: 3, h: 2 },
+  { id: "metric_net_profit", visible: true, x: 3, y: 5, w: 3, h: 2 },
+  { id: "metric_aov", visible: true, x: 6, y: 5, w: 3, h: 2 },
+  { id: "metric_shrinkage", visible: true, x: 9, y: 5, w: 3, h: 2 },
+  { id: "chart_revenue_vs_cogs", visible: true, x: 0, y: 7, w: 8, h: 4 },
+  { id: "widget_restock_alerts", visible: true, x: 8, y: 7, w: 4, h: 4 },
+  { id: "widget_cashier_leaderboard", visible: true, x: 0, y: 11, w: 7, h: 4 },
+  { id: "widget_dead_stock_aging", visible: true, x: 7, y: 11, w: 5, h: 4 },
+  { id: "widget_hourly_heatmap", visible: true, x: 0, y: 15, w: 8, h: 4 },
+  { id: "widget_sell_through", visible: true, x: 8, y: 15, w: 4, h: 4 },
+  { id: "widget_recent_orders", visible: true, x: 0, y: 19, w: 7, h: 4 },
+  { id: "widget_dead_stock", visible: true, x: 7, y: 19, w: 5, h: 4 },
+  { id: "widget_top_products", visible: true, x: 0, y: 23, w: 6, h: 4 },
+  { id: "widget_category_overview", visible: true, x: 6, y: 23, w: 6, h: 4 },
   // Hidden by default (no universal default report makes sense per store) —
   // included here so it always appears in the layout builder's widget list,
   // ready for a designer to toggle visible and pick a report, without
   // needing a separate "add a new widget" flow.
-  { id: "widget_pinned_report", visible: false, x: 0, y: 25, w: 12, h: 4, config: { reportId: "REP-SALES-01" } },
+  { id: "widget_pinned_report", visible: false, x: 0, y: 27, w: 12, h: 4, config: { reportId: "REP-SALES-01" } },
 ];
 
 /**
