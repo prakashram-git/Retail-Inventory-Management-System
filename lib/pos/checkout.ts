@@ -12,6 +12,7 @@ export interface CheckoutParams {
   cart: CartLine[];
   paymentMethod: PaymentMethod;
   discount: number;
+  customerId?: string | null;
   amountTendered: number;
   authCode?: string | null;
   cardBrand?: string | null;
@@ -66,6 +67,7 @@ export async function submitCheckout(params: CheckoutParams): Promise<CheckoutRe
     p_is_offline: !params.isOnline,
     p_offline_invoice: !params.isOnline ? offlineInvoice : null,
     p_offline_timestamp: !params.isOnline ? offlineTimestamp : null,
+    p_customer_id: params.customerId ?? null,
   };
 
   if (!params.isOnline) {

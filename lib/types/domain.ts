@@ -87,3 +87,15 @@ export interface Product {
 export interface ProductWithCategory extends Product {
   category: Pick<Category, "id" | "name" | "slug" | "parent_id" | "is_tax_exempt"> | null;
 }
+
+export interface Customer {
+  id: string;
+  store_id: string;
+  full_name: string;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}

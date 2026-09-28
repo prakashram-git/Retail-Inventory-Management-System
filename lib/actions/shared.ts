@@ -65,6 +65,55 @@ export async function requireStoreContext() {
 }
 
 /**
+ * Same store resolution as requireStoreContext(), but for actions a cashier
+ * legitimately performs at the register — currently just customer
+ * registration/search. Registering a customer while ringing up a sale is
+ * routine cashier work, unlike product/category/inventory mutations, so
+ * cashier is allowed through here (ui_designer still isn't — it has no
+ * legitimate POS reason to touch customer records). The database's own RLS
+ * (customers_insert in supabase/customers.sql) is still the real boundary;
+ * this only saves a cashier session a raw Postgres 42501 on the
+ * update/delete paths it can't reach.
+ */
+export async function requirePosStoreContext() {
+  const supabase = await createClient();
+
+  const { data: userResult } = await supabase.auth.getUser();
+  if (!userResult.user) {
+    throw new Error("Not authenticated");
+  }
+
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("role, store_id")
+    .eq("id", userResult.user.id)
+    .single();
+
+  if (error || !profile) {
+    throw new Error("Unable to resolve profile");
+  }
+
+  const role = profile.role as UserRole;
+
+  if (role === "ui_designer") {
+    throw new Error("403 Forbidden: Insufficient permissions to perform this action.");
+  }
+
+  const cookieStore = await cookies();
+  const storeId = await resolveActiveStoreId(
+    supabase,
+    cookieStore.get(ACTIVE_STORE_COOKIE)?.value,
+    { role, store_id: profile.store_id as string | null }
+  );
+
+  if (!storeId) {
+    throw new Error("No active store");
+  }
+
+  return { supabase, storeId, role };
+}
+
+/**
  * Store/appearance/staff administration is mall-wide, not store-scoped, so
  * these actions check the role directly instead of relying on
  * requireStoreContext()'s store resolution.

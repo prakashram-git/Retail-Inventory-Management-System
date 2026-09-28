@@ -6,6 +6,7 @@ import { useStore } from "@/components/providers/StoreProvider";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { CartPanel } from "./CartPanel";
+import type { CustomerSummary } from "@/lib/actions/customers";
 import type { CartTotals } from "@/lib/pos/pricing";
 import type { CartLine } from "@/lib/pos/types";
 
@@ -21,6 +22,8 @@ interface MobileCartBarProps {
   canApplyDiscount: boolean;
   discount: number;
   onDiscountChange: (value: number) => void;
+  customer: CustomerSummary | null;
+  onCustomerChange: (customer: CustomerSummary | null) => void;
 }
 
 export function MobileCartBar({
@@ -35,6 +38,8 @@ export function MobileCartBar({
   canApplyDiscount,
   discount,
   onDiscountChange,
+  customer,
+  onCustomerChange,
 }: MobileCartBarProps) {
   const { formatPrice } = useStore();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -72,6 +77,8 @@ export function MobileCartBar({
             canApplyDiscount={canApplyDiscount}
             discount={discount}
             onDiscountChange={onDiscountChange}
+            customer={customer}
+            onCustomerChange={onCustomerChange}
             onCheckout={() => {
               setDrawerOpen(false);
               onCheckout();

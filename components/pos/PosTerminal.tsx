@@ -30,6 +30,7 @@ import { OpenRegisterDialog } from "./OpenRegisterDialog";
 import { CloseShiftModal } from "./CloseShiftModal";
 import { TerminalLock } from "./TerminalLock";
 import { OrphanedCartPrompt } from "./OrphanedCartPrompt";
+import type { CustomerSummary } from "@/lib/actions/customers";
 import type { UserRole } from "@/lib/types/domain";
 
 interface PosTerminalProps {
@@ -85,6 +86,7 @@ export function PosTerminal({
 
   const [cart, setCart] = useState<CartLine[]>([]);
   const [discount, setDiscount] = useState(0);
+  const [customer, setCustomer] = useState<CustomerSummary | null>(null);
   const [sisterStoreProduct, setSisterStoreProduct] = useState<PosProduct | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [closeShiftOpen, setCloseShiftOpen] = useState(false);
@@ -126,6 +128,7 @@ export function PosTerminal({
       setSession(trainingSnapshot.session);
       setCart([]);
       setDiscount(0);
+      setCustomer(null);
       setTrainingSnapshot(null);
     }
   }
@@ -255,6 +258,7 @@ export function PosTerminal({
   function clearCart() {
     setCart([]);
     setDiscount(0);
+    setCustomer(null);
   }
 
   function handleCheckoutSuccess() {
@@ -267,6 +271,7 @@ export function PosTerminal({
     );
     setCart([]);
     setDiscount(0);
+    setCustomer(null);
     // Training sales never touched the server, so there is nothing to refresh.
     if (isOnline && !trainingMode) router.refresh();
     if (lockOnOrderComplete && !trainingMode) lock("order_completed");
@@ -284,6 +289,7 @@ export function PosTerminal({
   // time (rather than via Clear) rather than leaving a stale discount that
   // would silently reattach itself once new items are added.
   const effectiveDiscount = cart.length > 0 ? discount : 0;
+  const effectiveCustomer = cart.length > 0 ? customer : null;
   const totals = calculateCartTotals(cart, taxRatePercent, taxModel, effectiveDiscount);
   const registerOpen = session !== "loading" && session !== null;
 
@@ -370,6 +376,8 @@ export function PosTerminal({
             canApplyDiscount={canApplyDiscount}
             discount={effectiveDiscount}
             onDiscountChange={setDiscount}
+            customer={effectiveCustomer}
+            onCustomerChange={setCustomer}
           />
         </div>
       </div>
@@ -386,6 +394,8 @@ export function PosTerminal({
         canApplyDiscount={canApplyDiscount}
         discount={effectiveDiscount}
         onDiscountChange={setDiscount}
+        customer={effectiveCustomer}
+        onCustomerChange={setCustomer}
       />
 
       <CheckoutModal
@@ -400,6 +410,7 @@ export function PosTerminal({
         storeName={storeName}
         unitNumber={unitNumber}
         floorNumber={floorNumber}
+        customer={effectiveCustomer}
         onSuccess={handleCheckoutSuccess}
       />
 
@@ -434,6 +445,7 @@ export function PosTerminal({
             setSession(null);
             setCart([]);
             setDiscount(0);
+            setCustomer(null);
             if (lockOnDrawerClose) lock("drawer_closed");
           }}
         />

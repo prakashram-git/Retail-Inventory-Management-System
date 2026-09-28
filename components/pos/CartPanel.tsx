@@ -6,6 +6,8 @@ import { useStore } from "@/components/providers/StoreProvider";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { CustomerPicker } from "./CustomerPicker";
+import type { CustomerSummary } from "@/lib/actions/customers";
 import type { CartTotals } from "@/lib/pos/pricing";
 import type { CartLine } from "@/lib/pos/types";
 
@@ -22,6 +24,8 @@ interface CartPanelProps {
   canApplyDiscount: boolean;
   discount: number;
   onDiscountChange: (value: number) => void;
+  customer: CustomerSummary | null;
+  onCustomerChange: (customer: CustomerSummary | null) => void;
 }
 
 export function CartPanel({
@@ -36,6 +40,8 @@ export function CartPanel({
   canApplyDiscount,
   discount,
   onDiscountChange,
+  customer,
+  onCustomerChange,
 }: CartPanelProps) {
   const { formatPrice } = useStore();
   const [discountInputOpen, setDiscountInputOpen] = useState(false);
@@ -76,6 +82,12 @@ export function CartPanel({
           </Button>
         )}
       </div>
+
+      {cart.length > 0 && (
+        <div className="border-b px-4 py-2.5">
+          <CustomerPicker customer={customer} onChange={onCustomerChange} />
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-4 py-2">
         {cart.length === 0 ? (

@@ -8,6 +8,7 @@ import { useSync } from "@/components/providers/SyncProvider";
 import { getQuickTenderDenominations } from "@/lib/utils/currency";
 import { submitCheckout } from "@/lib/pos/checkout";
 import { useHelpCenter } from "@/components/help/HelpCenterContext";
+import type { CustomerSummary } from "@/lib/actions/customers";
 import type { CartTotals } from "@/lib/pos/pricing";
 import type { CartLine, PaymentMethod } from "@/lib/pos/types";
 import {
@@ -42,6 +43,7 @@ interface CheckoutModalProps {
   storeName: string;
   unitNumber: string | null;
   floorNumber: string | null;
+  customer: CustomerSummary | null;
   onSuccess: () => void;
 }
 
@@ -63,6 +65,7 @@ export function CheckoutModal({
   storeName,
   unitNumber,
   floorNumber,
+  customer,
   onSuccess,
 }: CheckoutModalProps) {
   const { formatPrice, currency } = useStore();
@@ -83,6 +86,7 @@ export function CheckoutModal({
     amountTendered: number;
     cart: CartLine[];
     totals: CartTotals;
+    customerName: string | null;
   } | null>(null);
 
   // Only re-initialize on the closed -> open transition. Completing a sale
@@ -135,6 +139,7 @@ export function CheckoutModal({
           authCode: paymentMethod === "card" ? authCode.trim() : null,
           cardBrand: paymentMethod === "card" ? cardBrand : null,
           cardLastFour: paymentMethod === "card" ? cardLastFour : null,
+          customerId: customer?.id ?? null,
           isOnline,
           is_training_mode: trainingMode,
         });
@@ -147,6 +152,7 @@ export function CheckoutModal({
           amountTendered: paymentMethod === "cash" ? tenderNumber : totals.total,
           cart,
           totals,
+          customerName: customer?.full_name ?? null,
         });
         toast.success(
           trainingMode
@@ -335,6 +341,7 @@ export function CheckoutModal({
                 <p>{new Date(completed.paidAt).toLocaleString()}</p>
                 {completed.invoiceNumber && <p>Invoice: {completed.invoiceNumber}</p>}
                 <p>Cashier: {cashierName}</p>
+                {completed.customerName && <p>Customer: {completed.customerName}</p>}
                 {completed.offline && (
                   <p className="mt-1 font-bold">*** Offline Transaction - Recorded Locally ***</p>
                 )}
