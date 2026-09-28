@@ -82,14 +82,14 @@ export function LowStockCard({
                   )}
                 </div>
                 <div className="flex min-w-0 flex-col">
-                  <span className="truncate text-[11.2px] font-medium">{product.name}</span>
-                  <span className="font-mono text-[9.6px] text-muted-foreground">{product.sku}</span>
+                  <span className="truncate text-[12.32px] font-medium">{product.name}</span>
+                  <span className="font-mono text-[10.56px] text-muted-foreground">{product.sku}</span>
                 </div>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Badge
                   variant={status === "out" ? "destructive" : "outline"}
-                  className="shrink-0 gap-1 text-[9.6px]"
+                  className="shrink-0 gap-1 text-[10.56px]"
                 >
                   {status === "out" ? "Out of stock" : `${product.current_stock} left · min ${threshold}`}
                 </Badge>
@@ -97,7 +97,7 @@ export function LowStockCard({
                   <Tooltip>
                     <TooltipTrigger
                       render={
-                        <span className="flex items-center gap-1 text-[9.6px] font-medium text-primary">
+                        <span className="flex items-center gap-1 text-[10.56px] font-medium text-primary">
                           <PackagePlus className="size-3" />
                           Order +{suggestedQuantity}
                         </span>
