@@ -271,6 +271,7 @@ export function SessionProvider({ user, children }: { user: SessionUser; childre
           storeId={storeId}
           userId={user.id}
           unitNumber={pos?.unitNumber ?? null}
+          reason={lockReason ?? "manual"}
         />
       )}
     </SessionGuardContext.Provider>

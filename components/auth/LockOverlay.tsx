@@ -9,6 +9,26 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getLockoutState, recordFailedAttempt, clearAttempts } from "@/lib/pos/pin-lockout";
 import { logLockEvent } from "@/lib/pos/lockAudit";
+import type { LockReason } from "./SessionProvider";
+
+const LOCK_COPY: Record<LockReason, { title: string; subtitle: string }> = {
+  inactivity: {
+    title: "Terminal locked",
+    subtitle: "Enter your PIN to resume — your cart is still here.",
+  },
+  order_completed: {
+    title: "Sale complete",
+    subtitle: "Enter your PIN to continue serving customers.",
+  },
+  drawer_closed: {
+    title: "Shift closed",
+    subtitle: "Enter your PIN to continue — you can start a new shift or sign out.",
+  },
+  manual: {
+    title: "Terminal locked",
+    subtitle: "Enter your PIN to resume.",
+  },
+};
 
 function formatRemaining(ms: number): string {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
@@ -23,6 +43,7 @@ interface LockOverlayProps {
   storeId: string;
   userId: string;
   unitNumber: string | null;
+  reason: LockReason;
 }
 
 /**
@@ -34,7 +55,8 @@ interface LockOverlayProps {
  * (lib/pos/pin-lockout.ts): a progressive delay for the first few wrong
  * PINs, then a hard 30-minute lockout after 6 — matching PCI DSS v4.0 8.2.4.
  */
-export function LockOverlay({ onUnlock, onSignOut, storeId, userId, unitNumber }: LockOverlayProps) {
+export function LockOverlay({ onUnlock, onSignOut, storeId, userId, unitNumber, reason }: LockOverlayProps) {
+  const { title, subtitle } = LOCK_COPY[reason];
   const [secret, setSecret] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [lockedUntilMs, setLockedUntilMs] = useState<number | null>(null);
@@ -111,11 +133,9 @@ export function LockOverlay({ onUnlock, onSignOut, storeId, userId, unitNumber }
     >
       <div className="flex flex-col items-center gap-2 text-center">
         <Lock className="size-8 text-muted-foreground" />
-        <p className="text-lg font-semibold">Terminal locked</p>
+        <p className="text-lg font-semibold">{title}</p>
         <p className="text-sm text-muted-foreground">
-          {isLockedOut
-            ? "Too many failed attempts."
-            : "Enter your PIN to resume — your cart is still here."}
+          {isLockedOut ? "Too many failed attempts." : subtitle}
         </p>
       </div>
 

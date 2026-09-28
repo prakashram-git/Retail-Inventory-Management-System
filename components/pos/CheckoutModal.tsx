@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Printer, CreditCard, Banknote, QrCode, CheckCircle2 } from "lucide-react";
 import { useStore } from "@/components/providers/StoreProvider";
@@ -85,19 +85,27 @@ export function CheckoutModal({
     totals: CartTotals;
   } | null>(null);
 
+  // Only re-initialize on the closed -> open transition. Completing a sale
+  // clears the cart while this dialog is still showing the receipt, which
+  // recomputes totals.total to 0 — if that alone re-ran this effect (as it
+  // used to, via a [open, totals.total] dependency with no open-edge guard),
+  // it wiped `completed` and dropped the cashier straight back to a blank
+  // $0 charge screen instead of the receipt they just earned.
+  const wasOpenRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
-    // Fresh idempotency key per checkout attempt; reused across retries of
-    // the *same* attempt (state persists until the dialog closes) so a
-    // network blip can't double-charge the customer.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIdempotencyKey(crypto.randomUUID());
-    setPaymentMethod("cash");
-    setAmountTendered(String(totals.total.toFixed(2)));
-    setAuthCode("");
-    setCardBrand("Visa");
-    setCardLastFour("");
-    setCompleted(null);
+    if (open && !wasOpenRef.current) {
+      // Fresh idempotency key per checkout attempt; reused across retries of
+      // the *same* attempt (state persists until the dialog closes) so a
+      // network blip can't double-charge the customer.
+      setIdempotencyKey(crypto.randomUUID());
+      setPaymentMethod("cash");
+      setAmountTendered(String(totals.total.toFixed(2)));
+      setAuthCode("");
+      setCardBrand("Visa");
+      setCardLastFour("");
+      setCompleted(null);
+    }
+    wasOpenRef.current = open;
   }, [open, totals.total]);
 
   const tenderNumber = Number(amountTendered) || 0;
