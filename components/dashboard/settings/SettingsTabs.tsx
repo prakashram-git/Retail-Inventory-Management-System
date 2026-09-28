@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Store, Image as ImageIcon, Users, KeyRound, ShieldCheck, DatabaseBackup, LayoutPanelTop, LifeBuoy, SlidersHorizontal, Lock } from "lucide-react";
+import { Image as ImageIcon, Users, KeyRound, ShieldCheck, DatabaseBackup, LayoutPanelTop, LifeBuoy, SlidersHorizontal, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/types/domain";
 
+// Store directory management moved to its own top-level nav item
+// (components/layout/nav-items.ts) — onboarding a new store is frequent and
+// foundational enough that it shouldn't be buried inside Settings.
 const SETTINGS_TABS = [
-  { href: "/dashboard/settings/stores", label: "Stores", icon: Store, roles: ["super_admin"] },
   {
     href: "/dashboard/settings/appearance",
     label: "Appearance",

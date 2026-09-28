@@ -1,16 +1,10 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function SettingsIndexPage() {
-  const supabase = await createClient();
-  const { data: userResult } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", userResult.user!.id)
-    .single();
-
-  redirect(profile?.role === "super_admin" ? "/dashboard/settings/stores" : "/dashboard/settings/appearance");
+  // Stores moved to its own top-level route (app/dashboard/stores) — every
+  // role that can reach Settings at all has access to Appearance, so it's
+  // the one universal landing tab now.
+  redirect("/dashboard/settings/appearance");
 }

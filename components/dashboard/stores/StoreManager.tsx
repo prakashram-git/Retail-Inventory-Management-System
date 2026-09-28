@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StoreDialog } from "./StoreDialog";
-import { DeleteRowButton } from "./DeleteRowButton";
+import { DeleteRowButton } from "@/components/dashboard/settings/DeleteRowButton";
 import { deleteStore } from "@/lib/actions/stores";
 import type { StoreDirectoryEntry } from "@/lib/types/domain";
 

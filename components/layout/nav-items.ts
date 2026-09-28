@@ -8,6 +8,7 @@ import {
   BarChart3,
   Settings,
   Users,
+  Store,
 } from "lucide-react";
 import type { UserRole } from "@/lib/types/domain";
 
@@ -24,6 +25,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Dashboard",
     icon: LayoutDashboard,
     roles: ["super_admin", "store_manager", "ui_designer"],
+  },
+  {
+    href: "/dashboard/stores",
+    label: "Stores",
+    icon: Store,
+    roles: ["super_admin"],
   },
   {
     href: "/dashboard/categories",

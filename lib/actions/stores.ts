@@ -4,15 +4,25 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireSuperAdmin } from "./shared";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isValidCurrencyCode, isValidTimezone } from "@/lib/utils/regions";
 
 const storeInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   code: z.string().trim().min(1, "Code is required").max(20),
   unit_number: z.string().trim().min(1, "Unit number is required").max(20),
   floor_number: z.string().trim().max(20).nullable(),
-  currency: z.string().trim().length(3, "Use a 3-letter currency code").toUpperCase(),
+  currency: z
+    .string()
+    .trim()
+    .length(3, "Use a 3-letter currency code")
+    .toUpperCase()
+    .refine(isValidCurrencyCode, { message: "Not a recognized ISO 4217 currency code" }),
   locale: z.string().trim().min(2).max(20),
-  timezone: z.string().trim().min(1, "Timezone is required"),
+  timezone: z
+    .string()
+    .trim()
+    .min(1, "Timezone is required")
+    .refine(isValidTimezone, { message: "Not a recognized IANA timezone" }),
   tax_model: z.enum(["inclusive", "exclusive"]),
   is_active: z.boolean().default(true),
 });
@@ -26,7 +36,7 @@ export async function createStore(input: StoreInput) {
   const { error } = await supabase.from("stores").insert(parsed);
   if (error) throw new Error(error.message);
 
-  revalidatePath("/dashboard/settings/stores");
+  revalidatePath("/dashboard/stores");
 }
 
 export async function updateStore(id: string, input: StoreInput) {
@@ -36,7 +46,7 @@ export async function updateStore(id: string, input: StoreInput) {
   const { error } = await supabase.from("stores").update(parsed).eq("id", id);
   if (error) throw new Error(error.message);
 
-  revalidatePath("/dashboard/settings/stores");
+  revalidatePath("/dashboard/stores");
 }
 
 /**
@@ -56,10 +66,10 @@ export async function deleteStore(id: string) {
       .update({ is_active: false })
       .eq("id", id);
     if (deactivateError) throw new Error(deactivateError.message);
-    revalidatePath("/dashboard/settings/stores");
+    revalidatePath("/dashboard/stores");
     return { softDeleted: true };
   }
 
-  revalidatePath("/dashboard/settings/stores");
+  revalidatePath("/dashboard/stores");
   return { softDeleted: false };
 }

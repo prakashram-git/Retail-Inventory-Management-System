@@ -28,7 +28,7 @@ export default async function TerminalLockSettingsPage() {
     profile
   );
   if (!storeId) {
-    redirect("/dashboard/settings/stores");
+    redirect("/dashboard/stores");
   }
 
   const [{ data: store }, settings] = await Promise.all([

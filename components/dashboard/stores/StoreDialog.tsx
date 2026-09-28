@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createStore, updateStore } from "@/lib/actions/stores";
+import { getCurrencyOptions, getTimezoneOptions } from "@/lib/utils/regions";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Combobox } from "@/components/ui/combobox";
 import {
   Select,
   SelectContent,
@@ -41,6 +43,23 @@ export function StoreDialog({ open, onOpenChange, store }: StoreDialogProps) {
   const [taxModel, setTaxModel] = useState<"inclusive" | "exclusive">("exclusive");
   const [isActive, setIsActive] = useState(true);
   const [isPending, startTransition] = useTransition();
+
+  // Built once per mount from the runtime's own ICU data (see
+  // lib/utils/regions.ts) — not hand-maintained lists that can drift or typo.
+  const currencyOptions = useMemo(
+    () =>
+      getCurrencyOptions().map((c) => ({
+        value: c.code,
+        label: `${c.code} — ${c.name}`,
+        keywords: [c.name, c.symbol],
+      })),
+    []
+  );
+  const timezoneOptions = useMemo(
+    () => getTimezoneOptions().map((tz) => ({ value: tz.value, label: tz.label })),
+    []
+  );
+  const selectedCurrency = getCurrencyOptions().find((c) => c.code === currency);
 
   useEffect(() => {
     if (!open) return;
@@ -117,7 +136,7 @@ export function StoreDialog({ open, onOpenChange, store }: StoreDialogProps) {
             <Input
               id="store-code"
               value={code}
-              onChange={(e) => setCode(e.target.value)}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
               disabled={isPending}
               className="font-mono"
             />
@@ -145,14 +164,38 @@ export function StoreDialog({ open, onOpenChange, store }: StoreDialogProps) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="store-currency">Currency code</Label>
-            <Input
+            <Label>Tax model</Label>
+            <Select value={taxModel} onValueChange={(value) => setTaxModel(value as "inclusive" | "exclusive")}>
+              <SelectTrigger disabled={isPending} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="exclusive">Exclusive (added at checkout)</SelectItem>
+                <SelectItem value="inclusive">Inclusive (baked into price)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="col-span-2 flex flex-col gap-1.5">
+            <Label htmlFor="store-currency">Currency</Label>
+            <Combobox
               id="store-currency"
+              options={currencyOptions}
               value={currency}
-              onChange={(e) => setCurrency(e.target.value.toUpperCase())}
+              onChange={setCurrency}
               disabled={isPending}
-              className="font-mono uppercase"
-              maxLength={3}
+              placeholder="Select a currency"
+              searchPlaceholder="Search code or name..."
+              emptyText="No matching currency."
+              renderValue={() => {
+                if (!selectedCurrency) return currency;
+                // Some ISO 4217 codes (AED, SAR, ...) have no distinct
+                // glyph, so Intl's own "symbol" falls back to the code
+                // itself — showing "AED (AED)" would just be noise.
+                const symbolPart =
+                  selectedCurrency.symbol !== selectedCurrency.code ? ` (${selectedCurrency.symbol})` : "";
+                return `${selectedCurrency.code}${symbolPart} — ${selectedCurrency.name}`;
+              }}
             />
           </div>
 
@@ -169,28 +212,17 @@ export function StoreDialog({ open, onOpenChange, store }: StoreDialogProps) {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="store-timezone">Timezone (IANA)</Label>
-            <Input
+            <Label htmlFor="store-timezone">Timezone</Label>
+            <Combobox
               id="store-timezone"
+              options={timezoneOptions}
               value={timezone}
-              onChange={(e) => setTimezone(e.target.value)}
+              onChange={setTimezone}
               disabled={isPending}
-              className="font-mono"
-              placeholder="Asia/Dubai"
+              placeholder="Select a timezone"
+              searchPlaceholder="Search city or region..."
+              emptyText="No matching timezone."
             />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label>Tax model</Label>
-            <Select value={taxModel} onValueChange={(value) => setTaxModel(value as "inclusive" | "exclusive")}>
-              <SelectTrigger disabled={isPending}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="exclusive">Exclusive (added at checkout)</SelectItem>
-                <SelectItem value="inclusive">Inclusive (baked into price)</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="col-span-2 flex items-center justify-between rounded-lg border px-3 py-2">

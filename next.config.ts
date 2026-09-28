@@ -21,6 +21,18 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react", "recharts", "dexie"],
   },
+  // Stores moved from a Settings tab to its own top-level route — this keeps
+  // any existing bookmark/browser-history entry working instead of dead-ending
+  // on a bare, chrome-less 404.
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/settings/stores",
+        destination: "/dashboard/stores",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
