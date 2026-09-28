@@ -84,7 +84,19 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
       toast.success(`${created.full_name} registered`);
       select(created);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not register customer");
+      const message = error instanceof Error ? error.message : "Could not register customer";
+      if (message.includes("already exists") && newPhone.trim()) {
+        // Dead end otherwise: a cashier mid-sale who mistypes a "new"
+        // customer's phone that's already on file would just hit an error
+        // and have to redo the search by hand. Drop back into search mode
+        // with that phone pre-filled instead, so the existing match is one
+        // tap away.
+        toast.error("That phone number is already registered — showing the match below.");
+        setShowRegisterForm(false);
+        setQuery(newPhone.trim());
+      } else {
+        toast.error(message);
+      }
     } finally {
       setIsRegistering(false);
     }
@@ -92,7 +104,7 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
 
   if (customer) {
     return (
-      <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-sm">
+      <div className="flex min-h-11 items-center justify-between gap-2 rounded-md border bg-muted/40 px-2.5 py-1.5 text-sm">
         <span className="flex min-w-0 items-center gap-1.5">
           <User className="size-3.5 shrink-0 text-muted-foreground" />
           <span className="truncate font-medium">{customer.full_name}</span>
@@ -102,9 +114,9 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
           type="button"
           onClick={() => onChange(null)}
           aria-label="Remove customer from sale"
-          className="shrink-0 text-muted-foreground hover:text-destructive"
+          className="touch-target flex shrink-0 items-center justify-center text-muted-foreground hover:text-destructive"
         >
-          <X className="size-3.5" />
+          <X className="size-4" />
         </button>
       </div>
     );
@@ -112,12 +124,16 @@ export function CustomerPicker({ customer, onChange }: CustomerPickerProps) {
 
   return (
     <>
+      {/* touch-target: this is a primary entry point a cashier reaches for
+          mid-sale on a touchscreen, not a repeated per-line control — same
+          reachability bar as the header icon buttons and Charge, not the
+          cart's dense +/- qty steppers. */}
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 self-start text-xs text-muted-foreground hover:text-foreground"
+        className="touch-target flex items-center gap-1.5 self-start text-sm text-muted-foreground hover:text-foreground"
       >
-        <UserPlus className="size-3.5" />
+        <UserPlus className="size-4" />
         Add customer
       </button>
 

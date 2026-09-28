@@ -176,13 +176,13 @@ export function CartPanel({
                 </Button>
               </div>
             ) : totals.discount > 0 ? (
-              <div className="flex items-center justify-between text-muted-foreground">
+              <div className="flex min-h-11 items-center justify-between text-muted-foreground">
                 <button
                   type="button"
                   onClick={openDiscountInput}
-                  className="flex items-center gap-1 hover:text-foreground"
+                  className="touch-target flex items-center gap-1 hover:text-foreground"
                 >
-                  <Tag className="size-3" />
+                  <Tag className="size-3.5" />
                   Discount
                 </button>
                 <div className="flex items-center gap-1.5">
@@ -191,19 +191,22 @@ export function CartPanel({
                     type="button"
                     onClick={removeDiscount}
                     aria-label="Remove discount"
-                    className="text-muted-foreground hover:text-destructive"
+                    className="touch-target flex items-center justify-center text-muted-foreground hover:text-destructive"
                   >
-                    <X className="size-3" />
+                    <X className="size-4" />
                   </button>
                 </div>
               </div>
             ) : (
+              // touch-target: same entry-point reachability bar as "Add
+              // customer" — a cashier reaches for this mid-sale on a
+              // touchscreen, unlike the dense per-line qty steppers above.
               <button
                 type="button"
                 onClick={openDiscountInput}
-                className="flex items-center gap-1 self-start text-xs text-muted-foreground hover:text-foreground"
+                className="touch-target flex items-center gap-1.5 self-start text-sm text-muted-foreground hover:text-foreground"
               >
-                <Tag className="size-3" />
+                <Tag className="size-4" />
                 Add discount
               </button>
             )}
