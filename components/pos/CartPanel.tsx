@@ -32,7 +32,10 @@ export function CartPanel({
 
   return (
     <div className="flex h-full flex-col" data-tour="pos-cart">
-      <div className="flex items-center justify-between border-b px-4 py-3">
+      {/* pr-12 reserves room for the mobile Sheet's absolutely-positioned
+          close (X) button (MobileCartBar renders this panel inside one),
+          which otherwise overlaps "Clear" in the same top-right corner. */}
+      <div className="flex items-center justify-between border-b py-3 pl-4 pr-12">
         <h2 className="flex items-center gap-2 font-semibold">
           <ShoppingCart className="size-4" />
           Cart

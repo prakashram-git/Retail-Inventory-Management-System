@@ -49,6 +49,10 @@
 }
 
 :root {
+  /* Fallback only — app/layout.tsx sets the real value inline from
+     system_settings.form_font_family so it can be changed at runtime
+     without a rebuild (see lib/theme/typography.ts). */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
